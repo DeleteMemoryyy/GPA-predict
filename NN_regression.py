@@ -183,7 +183,7 @@ insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生I
 above_result = result[:58]
 below_result = result[58:]
 result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-result.to_csv('result/result_{}.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+result.to_csv('result/result_mlp_{}.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
               header=True,index=False,encoding='utf-8')
 
 torch_x_all_train = torch.from_numpy(x_all_train.values).float()

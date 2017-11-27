@@ -4,9 +4,10 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
-import sklearn.preprocessing as prep
-import sklearn.svm as svm
-import sklearn.metrics as metrics
+from sklearn import preprocessing as prep
+from sklearn import linear_model as lm
+from sklearn import svm as svm
+from sklearn import metrics as metrics
 from matplotlib import pyplot as plt
 import seaborn as sns
 
@@ -14,17 +15,21 @@ import seaborn as sns
 
 all_data = pd.read_csv('data/ALLDATA.csv')
 
+svr_C = 400
+svr_gamma = 0.001
+regr_alpha = 11
+
 drop_columns = ['grade','admit_grade','high_school','high_rank',
-                'rank_var','progress','patent','social','prize','competition']
+                'rank_var','progress','patent','social','prize','color_blind','lan_type','left_sight','right_sight',]
 
-one_hot_columns = ['province','gender','birth_year','nation','politics','color_blind',
-                   'stu_type','lan_type','sub_type','test_year','department','reward_type']
+one_hot_columns = ['province','gender','birth_year','nation','politics',
+                   'stu_type','sub_type','test_year','department','reward_type']
 
-numerical_columns = ['left_sight','right_sight','admit_rank','school_num','center_grade'
-                   'school_admit_rank','reward_score','height','weight']
+numerical_columns = ['admit_rank','school_num','center_grade'
+                   'school_admit_rank','reward_score','height','weight','competition']
 
-standardization_columns = ['left_sight','right_sight','admit_rank','school_num',
-                   'school_admit_rank','reward_score','height','weight']
+standardization_columns = ['admit_rank','school_num',
+                   'school_admit_rank','reward_score','height','weight','competition']
 
 other_columns = ['student_ID','GPA','test_tag','test_ID']
 
@@ -38,7 +43,6 @@ all_data['prize']=all_data['prize'].fillna(0)
 all_data['competition']=all_data['competition'].fillna(0)
 all_data['patent']=all_data['patent'].fillna(0)
 all_data['social']=all_data['social'].fillna(0)
-
 proc_data = all_data
 
 # one-hot processing
@@ -118,10 +122,28 @@ x_train,x_valid,y_train,y_valid = train_test_split(x_all_train.values,y_all_trai
                                                    random_state=33)
 
 #%% SVR
-svr = svm.SVR(C=1000, gamma=0.001)
+svr = svm.SVR(C=svr_C, gamma=svr_gamma)
 svr.fit(x_train, y_train)
 svr_y_valid_predict = svr.predict(x_valid)
+svr_y_all_predict = svr.predict(x_all_train)
 svr_y_test_predict = svr.predict(x_test)
+print("svr_valid_score: {}".format(svr.score(x_valid,y_valid)))
+print("svr_valid_mse: {}".format(metrics.mean_squared_error(y_valid,svr_y_valid_predict)))
+print("svr_all_score: {}".format(svr.score(x_all_train,y_all_train)))
+print("svr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,svr_y_all_predict)))
+
+#%% Ridge regression
+regr = lm.Ridge(alpha=regr_alpha)
+regr.fit(x_train, y_train)
+regr_y_valid_predict = regr.predict(x_valid)
+regr_y_all_predict = regr.predict(x_all_train)
+regr_y_test_predict = regr.predict(x_test)
+print("regr_valid_score: {}".format(regr.score(x_valid,y_valid)))
+print("regr_valid_mse: {}".format(metrics.mean_squared_error(y_valid,regr_y_valid_predict)))
+print("regr_all_score: {}".format(regr.score(x_all_train,y_all_train)))
+print("regr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,regr_y_all_predict)))
+
+#%% save result
 result = all_data[['student_ID','GPA']][all_data['test_tag']=='test']
 result['GPA'] = svr_y_test_predict
 result.columns=['学生ID','综合GPA']
@@ -129,8 +151,15 @@ insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生I
 above_result = result[:58]
 below_result = result[58:]
 result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-result.to_csv('result/result_{}.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+result.to_csv('result/result_svr_{}.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
               header=True,index=False,encoding='utf-8')
 
-print("svr_score: {}".format(svr.score(x_valid,y_valid)))
-print("MSE: {}".format(metrics.mean_squared_error(y_valid,svr_y_valid_predict)))
+result = all_data[['student_ID','GPA']][all_data['test_tag']=='test']
+result['GPA'] = regr_y_test_predict
+result.columns=['学生ID','综合GPA']
+insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
+above_result = result[:58]
+below_result = result[58:]
+result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
+result.to_csv('result/result_regr_{}.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+              header=True,index=False,encoding='utf-8')
