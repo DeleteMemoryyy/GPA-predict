@@ -1,1 +1,1 @@
-print(torch.cuda.is_available())
+print((net.hidden.hidden1.weight ** 2).sum())

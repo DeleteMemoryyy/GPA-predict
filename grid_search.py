@@ -118,10 +118,10 @@ x_test = proc_data[all_data['test_tag']=='test']
 x_train,x_valid,y_train,y_valid = train_test_split(x_all_train.values,y_all_train.values,
                                                    random_state=33)
 # SVR grid search
-grid = GridSearchCV(svm.SVR(), param_grid={"C":[500,1000,1500,2000], "gamma": [0.001,0.01,0.1,1]}, cv=4,
+grid = GridSearchCV(svm.SVR(), param_grid={'C':[500,1000,1500,2000], 'gamma': [0.001,0.01,0.1,1]}, cv=4,
                     scoring='neg_mean_squared_error',verbose=2)
 grid.fit(x_all_train,y_all_train)
-print("Best svm parameters: {}".format(grid.best_params_))
+print('Best svm parameters: {}'.format(grid.best_params_))
 
 # SVR
 svr = grid.best_estimator_
@@ -129,5 +129,5 @@ svr.fit(x_train, y_train)
 svr_y_valid_predict = svr.predict(x_valid)
 svr_y_test_predict = svr.predict(x_test)
 
-print("svr_score: {}".format(svr.score(x_valid,y_valid)))
-print("MSE: {}".format(metrics.mean_squared_error(y_valid,svr_y_valid_predict)))
+print('svr_score: {}'.format(svr.score(x_valid,y_valid)))
+print('MSE: {}'.format(metrics.mean_squared_error(y_valid,svr_y_valid_predict)))

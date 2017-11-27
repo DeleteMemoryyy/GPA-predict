@@ -19,12 +19,7 @@ import torch.nn.functional as Functional
 import torch.nn.init as Init
 
 net_dir = 'net'
-net_name = '0_0.001000_1000_50_net_param.pkl'
-C_Batch = 50
-C_Epoch = 100
-C_LR = 0.001
-C_Momentum = 0.1
-print_gap = 1
+net_name = '4_0.0010_2921_50_net_param.pkl'
 
 all_data = pd.read_csv('data/ALLDATA.csv')
 
@@ -146,14 +141,18 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.hidden = nn.Sequential(OrderedDict([
-            ('hidden1', nn.Linear(d_feature, 2048)),
+            ('hidden1', nn.Linear(d_feature, 1024)),
+            # ('bn1',nn.BatchNorm1d(1024)),
+            ('drop1',nn.Dropout(0.5)),
             ('relu1', nn.ReLU()),
-            ('hidden2', nn.Linear(2048, 1024)),
+            ('hidden2', nn.Linear(1024, 512)),
+            # ('bn2',nn.BatchNorm1d(5112)),
+            ('drop2',nn.Dropout(0.5)),
             ('relu2', nn.ReLU())
         ]))
         Init.xavier_uniform(self.hidden.hidden1.weight,gain=np.sqrt(2.0))
         Init.xavier_uniform(self.hidden.hidden2.weight,gain=np.sqrt(2.0))
-        self.out = nn.Linear(1024, 1)
+        self.out = nn.Linear(512, 1)
 
     def forward(self, x):
         hidden = self.hidden(x)

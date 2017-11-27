@@ -8,8 +8,8 @@ from sklearn.model_selection import GridSearchCV
 import sklearn.preprocessing as prep
 import sklearn.svm as svm
 import sklearn.metrics as metrics
-# from matplotlib import pyplot as plt
-# import seaborn as sns
+from matplotlib import pyplot as plt
+import seaborn as sns
 from collections import OrderedDict
 import torch
 from torch import nn
@@ -25,9 +25,9 @@ C_LR = 0.001
 C_Momentum = 0.1
 early_stop = True
 early_stop_flag = False
-stop_mse = 0.142
+stop_mse = 0.140
 stop_process = 0.2
-tolerancing = 0.04
+tolerancing = 0.05
 C_Epoch = 10000
 save_gap = 10
 print_gap = 10
@@ -197,7 +197,9 @@ time_s = time.time()
 time_u = time_s
 epoch = 0
 recent_loss = 100
-
+train_err_list = []
+valid_err_list = []
+learning_time = []
 for epoch in range(C_Epoch):
     for step,(x,y) in enumerate(train_data):
         if (torch.cuda.is_available()):
@@ -210,7 +212,8 @@ for epoch in range(C_Epoch):
 
         y_train_out = net(v_x)
         loss = loss_func(y_train_out,v_y)
-        loss.backward()
+        reg_loss = loss + ((net.hidden.hidden1.weight ** 2).sum() + (net.hidden.hidden2.weight ** 2).sum() + (net.out.weight ** 2).sum()) * 0.05 / x.shape[0]
+        reg_loss.backward()
         optimizer.step()
 
     time_c = time.time()
@@ -225,6 +228,9 @@ for epoch in range(C_Epoch):
     if ((epoch % save_gap) == 0):
         y_valid_out = net(v_x_valid).cpu().data.numpy()
         this_loss = metrics.mean_squared_error(y_valid,y_valid_out)
+        train_err_list.append(loss.cpu().data.numpy()[0])
+        valid_err_list.append(this_loss)
+        learning_time.append(epoch + 1)
         print('Validating mse = {0:.4f}'.format(this_loss))
         if(early_stop and epoch > C_Epoch * stop_process and recent_loss <= stop_mse
            and this_loss > (recent_loss * (1 + tolerancing))):
@@ -238,10 +244,6 @@ for epoch in range(C_Epoch):
             net = net.cuda()
         print('Temporary save to {0:s}/{1:s} at {2:d}/{3:d}'.format(net_dir,temp_save_name,epoch + 1,C_Epoch))
         print('')
-
-    if (early_stop_flag):
-        break
-
 
 print('Training finish!')
 print('Finishing loss: {0:f}'.format(loss.cpu().data.numpy()[0]))
@@ -261,3 +263,8 @@ if(early_stop_flag):
 else:
     torch.save(net.cpu().state_dict(),'{0:s}/{1:s}'.format(net_dir,save_name))
 print('Save to: {0:s}/{1:s}'.format(net_dir,save_name))
+
+# plot cost history
+plt.plot(learning_time, train_err_list, 'r-')
+plt.plot(learning_time, valid_err_list, 'b--')
+plt.show()
