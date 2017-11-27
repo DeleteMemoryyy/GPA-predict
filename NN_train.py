@@ -264,7 +264,7 @@ else:
     torch.save(net.cpu().state_dict(),'{0:s}/{1:s}'.format(net_dir,save_name))
 print('Save to: {0:s}/{1:s}'.format(net_dir,save_name))
 
-# plot cost history
+# plot loss history
 plt.plot(learning_time, train_err_list, 'r-')
 plt.plot(learning_time, valid_err_list, 'b--')
 plt.show()
