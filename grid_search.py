@@ -68,7 +68,8 @@ if __name__ == '__main__':
     all_data = pd.read_csv('data/ALLDATA.csv')
 
     drop_columns = ['grade','admit_grade','high_school','high_rank',
-                    'rank_var','progress','patent','social','prize','color_blind','lan_type','left_sight','right_sight',]
+                    'rank_var','progress','patent','social','prize','color_blind',
+                    'lan_type','left_sight','right_sight',]
 
     one_hot_columns = ['province','gender','birth_year','nation','politics',
                     'stu_type','sub_type','test_year','department','reward_type']

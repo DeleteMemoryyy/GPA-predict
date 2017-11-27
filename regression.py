@@ -153,7 +153,6 @@ below_result = result[58:]
 result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
 result.to_csv('result/result_svr_{}.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
               header=True,index=False,encoding='utf-8')
-
 result = all_data[['student_ID','GPA']][all_data['test_tag']=='test']
 result['GPA'] = regr_y_test_predict
 result.columns=['学生ID','综合GPA']
