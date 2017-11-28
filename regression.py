@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+#%% init
 import time
 import numpy as np
 import pandas as pd
@@ -12,27 +13,33 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 
 # all_data = pd.ExcelFile('data/ALLDATA.xlsx').parse('Sheet1')
-
 all_data = pd.read_csv('data/ALLDATA.csv')
 
 svr_C = 400
 svr_gamma = 0.001
-regr_alpha = 11
+regr_alpha = 11.0
+lsr_alpha = 0.00063
+enr_alpha = 0.00257
+enr_l1r = 0.15
+
+rand_seed = 33
 
 drop_columns = ['grade','admit_grade','high_school','high_rank',
                 'rank_var','progress','patent','social','prize','color_blind','lan_type','left_sight','right_sight',]
 
 one_hot_columns = ['province','gender','birth_year','nation','politics',
-                   'stu_type','sub_type','test_year','department','reward_type']
+                'stu_type','sub_type','test_year','department','reward_type']
 
 numerical_columns = ['admit_rank','school_num','center_grade'
-                   'school_admit_rank','reward_score','height','weight','competition']
+                'school_admit_rank','reward_score','height','weight','competition']
 
 standardization_columns = ['admit_rank','school_num',
-                   'school_admit_rank','reward_score','height','weight','competition']
+                'school_admit_rank','reward_score','height','weight','competition']
 
 other_columns = ['student_ID','GPA','test_tag','test_ID']
 
+# preprocess features
+# fill nan
 all_data['rank_var']=all_data['rank_var'].fillna(all_data['rank_var'].mean())
 all_data['high_rank']=all_data['high_rank'].fillna(all_data['high_rank'].mean())
 all_data['progress']=all_data['progress'].fillna(all_data['progress'].mean())
@@ -51,6 +58,112 @@ proc_data = pd.merge(proc_data, pd.get_dummies(proc_data, columns=one_hot_column
 proc_data = proc_data.drop(one_hot_columns,axis=1)
 
 # process sight
+proc_data['left_sight'] = proc_data['left_sight'].apply(precess_sight)
+proc_data['right_sight'] = proc_data['right_sight'].apply(precess_sight)
+proc_data['left_sight'] = proc_data['left_sight'].fillna(proc_data['left_sight'].mean())
+proc_data['right_sight'] = proc_data['right_sight'].fillna(proc_data['right_sight'].mean())
+
+# drop features
+proc_data = proc_data.drop(drop_columns,axis=1)
+proc_data = proc_data.drop(other_columns,axis=1)
+
+# standardization
+ss_x = prep.StandardScaler()
+proc_data[standardization_columns] = ss_x.fit_transform(proc_data[standardization_columns].values)
+
+# spilt training data
+x_all_train = proc_data[all_data['test_tag']!='test']
+y_all_train = all_data['GPA'][all_data['test_tag']!='test']
+x_test = proc_data[all_data['test_tag']=='test']
+x_train,x_valid,y_train,y_valid = train_test_split(x_all_train.values,y_all_train.values,
+                                                random_state=rand_seed)
+
+#%% regression
+# SVR
+svr = svm.SVR(C=svr_C, gamma=svr_gamma)
+svr.fit(x_train, y_train)
+svr_y_valid_predict = svr.predict(x_valid)
+svr_y_all_predict = svr.predict(x_all_train)
+svr_y_test_predict = svr.predict(x_test)
+print("svr_valid_score: {}".format(svr.score(x_valid,y_valid)))
+print("svr_valid_mse: {}".format(metrics.mean_squared_error(y_valid,svr_y_valid_predict)))
+print("svr_all_score: {}".format(svr.score(x_all_train,y_all_train)))
+print("svr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,svr_y_all_predict)))
+
+# Ridge regression
+regr = lm.Ridge(alpha=regr_alpha)
+regr.fit(x_train, y_train)
+regr_y_valid_predict = regr.predict(x_valid)
+regr_y_all_predict = regr.predict(x_all_train)
+regr_y_test_predict = regr.predict(x_test)
+print("regr_valid_score: {}".format(regr.score(x_valid,y_valid)))
+print("regr_valid_mse: {}".format(metrics.mean_squared_error(y_valid,regr_y_valid_predict)))
+print("regr_all_score: {}".format(regr.score(x_all_train,y_all_train)))
+print("regr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,regr_y_all_predict)))
+
+# Lasso regression
+lsr = lm.Lasso(alpha=lsr_alpha)
+lsr.fit(x_train, y_train)
+lsr_y_valid_predict = lsr.predict(x_valid)
+lsr_y_all_predict = lsr.predict(x_all_train)
+lsr_y_test_predict = lsr.predict(x_test)
+print("lsr_valid_score: {}".format(lsr.score(x_valid,y_valid)))
+print("lsr_valid_mse: {}".format(metrics.mean_squared_error(y_valid,lsr_y_valid_predict)))
+print("lsr_all_score: {}".format(lsr.score(x_all_train,y_all_train)))
+print("lsr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,lsr_y_all_predict)))
+
+# Elastic Net regression
+enr = lm.ElasticNet(alpha=lsr_alpha,l1_ratio=enr_l1r)
+enr.fit(x_train, y_train)
+enr_y_valid_predict = enr.predict(x_valid)
+enr_y_all_predict = enr.predict(x_all_train)
+enr_y_test_predict = enr.predict(x_test)
+print("enr_valid_score: {}".format(enr.score(x_valid,y_valid)))
+print("enr_valid_mse: {}".format(metrics.mean_squared_error(y_valid,enr_y_valid_predict)))
+print("enr_all_score: {}".format(enr.score(x_all_train,y_all_train)))
+print("enr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,enr_y_all_predict)))
+
+# SGD regression
+# sgdr = lm.SGDRegressor()
+
+#%% save result
+result = all_data[['student_ID','GPA']][all_data['test_tag']=='test']
+result['GPA'] = svr_y_test_predict
+result.columns=['学生ID','综合GPA']
+insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
+above_result = result[:58]
+below_result = result[58:]
+result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
+result.to_csv('result/result_{}_svr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+            header=True,index=False,encoding='utf-8')
+result = all_data[['student_ID','GPA']][all_data['test_tag']=='test']
+result['GPA'] = regr_y_test_predict
+result.columns=['学生ID','综合GPA']
+insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
+above_result = result[:58]
+below_result = result[58:]
+result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
+result.to_csv('result/result_{}_regr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+            header=True,index=False,encoding='utf-8')
+result = all_data[['student_ID','GPA']][all_data['test_tag']=='test']
+result['GPA'] = lsr_y_test_predict
+result.columns=['学生ID','综合GPA']
+insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
+above_result = result[:58]
+below_result = result[58:]
+result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
+result.to_csv('result/result_{}_lsr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+            header=True,index=False,encoding='utf-8')
+result = all_data[['student_ID','GPA']][all_data['test_tag']=='test']
+result['GPA'] = enr_y_test_predict
+result.columns=['学生ID','综合GPA']
+insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
+above_result = result[:58]
+below_result = result[58:]
+result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
+result.to_csv('result/result_{}_enr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+            header=True,index=False,encoding='utf-8')
+
 def precess_sight(x):
     if (x == np.nan):
         return x
@@ -100,65 +213,3 @@ def precess_sight(x):
         return 3.5
     else:
         return np.nan
-
-proc_data['left_sight'] = proc_data['left_sight'].apply(precess_sight)
-proc_data['right_sight'] = proc_data['right_sight'].apply(precess_sight)
-proc_data['left_sight'] = proc_data['left_sight'].fillna(proc_data['left_sight'].mean())
-proc_data['right_sight'] = proc_data['right_sight'].fillna(proc_data['right_sight'].mean())
-
-# drop features
-proc_data = proc_data.drop(drop_columns,axis=1)
-proc_data = proc_data.drop(other_columns,axis=1)
-
-#%% standardization
-ss_x = prep.StandardScaler()
-proc_data[standardization_columns] = ss_x.fit_transform(proc_data[standardization_columns].values)
-
-#%% spilt training data
-x_all_train = proc_data[all_data['test_tag']!='test']
-y_all_train = all_data['GPA'][all_data['test_tag']!='test']
-x_test = proc_data[all_data['test_tag']=='test']
-x_train,x_valid,y_train,y_valid = train_test_split(x_all_train.values,y_all_train.values,
-                                                   random_state=33)
-
-#%% SVR
-svr = svm.SVR(C=svr_C, gamma=svr_gamma)
-svr.fit(x_train, y_train)
-svr_y_valid_predict = svr.predict(x_valid)
-svr_y_all_predict = svr.predict(x_all_train)
-svr_y_test_predict = svr.predict(x_test)
-print("svr_valid_score: {}".format(svr.score(x_valid,y_valid)))
-print("svr_valid_mse: {}".format(metrics.mean_squared_error(y_valid,svr_y_valid_predict)))
-print("svr_all_score: {}".format(svr.score(x_all_train,y_all_train)))
-print("svr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,svr_y_all_predict)))
-
-#%% Ridge regression
-regr = lm.Ridge(alpha=regr_alpha)
-regr.fit(x_train, y_train)
-regr_y_valid_predict = regr.predict(x_valid)
-regr_y_all_predict = regr.predict(x_all_train)
-regr_y_test_predict = regr.predict(x_test)
-print("regr_valid_score: {}".format(regr.score(x_valid,y_valid)))
-print("regr_valid_mse: {}".format(metrics.mean_squared_error(y_valid,regr_y_valid_predict)))
-print("regr_all_score: {}".format(regr.score(x_all_train,y_all_train)))
-print("regr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,regr_y_all_predict)))
-
-#%% save result
-result = all_data[['student_ID','GPA']][all_data['test_tag']=='test']
-result['GPA'] = svr_y_test_predict
-result.columns=['学生ID','综合GPA']
-insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
-above_result = result[:58]
-below_result = result[58:]
-result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-result.to_csv('result/result_svr_{}.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
-              header=True,index=False,encoding='utf-8')
-result = all_data[['student_ID','GPA']][all_data['test_tag']=='test']
-result['GPA'] = regr_y_test_predict
-result.columns=['学生ID','综合GPA']
-insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
-above_result = result[:58]
-below_result = result[58:]
-result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-result.to_csv('result/result_regr_{}.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
-              header=True,index=False,encoding='utf-8')

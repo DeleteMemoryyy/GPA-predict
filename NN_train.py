@@ -32,6 +32,7 @@ C_Epoch = 10000
 save_gap = 10
 print_gap = 10
 
+rand_seed = 33
 
 all_data = pd.read_csv('data/ALLDATA.csv')
 
@@ -145,7 +146,7 @@ x_all_train = proc_data[all_data['test_tag'] != 'test']
 y_all_train = all_data['GPA'][all_data['test_tag'] != 'test']
 x_test = proc_data[all_data['test_tag'] == 'test']
 x_train, x_valid, y_train, y_valid = train_test_split(x_all_train.values, y_all_train.values,
-                                                      random_state=33)
+                                                      random_state=rand_seed)
 
 d_feature = x_all_train.shape[1]
 

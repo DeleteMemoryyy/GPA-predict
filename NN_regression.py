@@ -21,6 +21,8 @@ import torch.nn.init as Init
 net_dir = 'net'
 net_name = '4_0.0010_2921_50_net_param.pkl'
 
+rand_seed = 33
+
 all_data = pd.read_csv('data/ALLDATA.csv')
 
 drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank',
@@ -133,7 +135,7 @@ x_all_train = proc_data[all_data['test_tag'] != 'test']
 y_all_train = all_data['GPA'][all_data['test_tag'] != 'test']
 x_test = proc_data[all_data['test_tag'] == 'test']
 x_train, x_valid, y_train, y_valid = train_test_split(x_all_train.values, y_all_train.values,
-                                                      random_state=33)
+                                                      random_state=rand_seed)
 
 d_feature = x_all_train.shape[1]
 
