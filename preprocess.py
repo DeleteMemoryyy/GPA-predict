@@ -29,6 +29,8 @@ all_data = pd.read_csv('data/ALLDATA.csv')
 dpart_rank = pd.read_csv('data/depart_rank.csv')
 all_data = pd.concat([all_data, dpart_rank], axis=1)
 
+drop_gpa = 0.5
+
 svr_C = 400
 svr_gamma = 0.001
 regr_alpha = 11.0
@@ -70,7 +72,7 @@ other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
 # preprocess features
 # drop outlier
 for i in range(all_data.shape[0]):
-    if(all_data['test_tag'][i] != 'test' and all_data['GPA'][i] <= 0.3):
+    if(all_data['test_tag'][i] != 'test' and all_data['GPA'][i] <= drop_gpa):
         all_data = all_data.drop(i, axis=0)
 all_data.index
 all_data.index = range(all_data.shape[0])

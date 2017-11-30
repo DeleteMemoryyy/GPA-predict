@@ -25,7 +25,7 @@ if __name__ == '__main__':
     all_data = pd.concat([all_data, dpart_rank], axis=1)
     proc_data = all_data
 
-    drop_gpa = 1.0
+    drop_gpa = 0.5
 
     rand_seed = 33
 
@@ -34,22 +34,19 @@ if __name__ == '__main__':
 
     ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade',
                             'admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank',
-                            'high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize',
-                            'competition']
+                            'high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize', 'competition']
 
-    drop_columns = ['grade', 'admit_grade', 'high_school', 'politics',
+    drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',
                     'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
 
-    one_hot_columns = ['province', 'gender', 'birth_year', 'nation',
+    one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics',
                     'test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
 
-    numerical_columns = ['admit_rank', 'school_num', 'center_grade',
-                        'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight', 'social', 'prize', 'high_rank', 'rank_var', 'progress']
-
-    standardization_columns = ['admit_rank', 'school_num',
-                            'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
+    numerical_columns = ['admit_rank', 'school_num', 'center_grade', 'social',
+                        'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
 
     other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
+
 
     # preprocess features
     # drop outlier
@@ -186,6 +183,7 @@ if __name__ == '__main__':
                             != 'test'].drop(other_columns, axis=1)
     x_test = proc_data[proc_data['test_tag'] == 'test'].drop(other_columns, axis=1)
     result_data = proc_data['GPA'][proc_data['test_tag'] != 'test']
+    # FIXME: ss_y should be used
     y_all_train = result_data
 
     # #%% SVR grid search
@@ -204,7 +202,7 @@ if __name__ == '__main__':
     # print("svr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,svr_y_all_predict)))
 
     #%% RidgeCV search
-    regr_cv = lm.RidgeCV(alphas=[0.1, 1, 6, 11, 16,21, 26],
+    regr_cv = lm.RidgeCV(alphas=[0.1, 1, 11, 21],
                          scoring='neg_mean_squared_error')
     regr_cv.fit(x_all_train, y_all_train)
     print('Best Ridge alpha: {}'.format(regr_cv.alpha_))
