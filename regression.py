@@ -20,7 +20,10 @@ import seaborn as sns
 # proc_data = pd.ExcelFile('data/ALLDATA.xlsx').parse('Sheet1')
 all_data = pd.read_csv('data/ALLDATA.csv')
 dpart_rank = pd.read_csv('data/depart_rank.csv')
-all_data = pd.concat([all_data, dpart_rank], axis=1)
+center_progress = pd.read_csv('data/center_progress.csv')
+center_rank = pd.read_csv('data/center_rank.csv')
+center_var = pd.read_csv('data/center_var.csv')
+all_data = pd.concat([all_data, dpart_rank,center_progress,center_rank,center_var], axis=1)
 proc_data = all_data
 
 drop_gpa = 0.5
@@ -38,16 +41,16 @@ fill_in_gpa = 2.35815726
 ori_one_hot_columns = ['province', 'gender', 'test_year', 'nation', 'politics', 'color_blind',
                        'stu_type', 'lan_type', 'sub_type', 'birth_year', 'department', 'reward_type']
 
-ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade',
+ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade', 'center_progress', 'center_rank', 'center_var',
                          'admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank',
                          'high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize','competition']
 
 drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',
                 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
 
-one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics',                   'test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
+one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics','test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
 
-numerical_columns = ['admit_rank', 'school_num', 'center_grade','social',
+numerical_columns = ['admit_rank', 'school_num', 'center_grade','social','center_progress','center_rank','center_var',
                      'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
 
 other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
