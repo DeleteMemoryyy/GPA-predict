@@ -45,12 +45,12 @@ ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade
                          'admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank',
                          'high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize','competition']
 
-drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',
+drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank', 'center_progress', 'center_var',
                 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
 
 one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics','test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
 
-numerical_columns = ['admit_rank', 'school_num', 'center_grade','social','center_progress','center_rank','center_var',
+numerical_columns = ['admit_rank', 'school_num', 'center_grade', 'social',
                      'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
 
 other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
@@ -182,7 +182,8 @@ x_all_train = proc_data[proc_data['test_tag']!='test'].drop(other_columns,axis=1
 x_test = proc_data[proc_data['test_tag'] == 'test'].drop(other_columns, axis=1)
 result_data = proc_data['GPA'][proc_data['test_tag']!='test']
 y_all_train = result_data.values
-x_train,x_valid,y_train,y_valid = train_test_split(x_all_train.values,y_all_train,random_state=rand_seed)
+# x_train, x_valid, y_train, y_valid = train_test_split(
+#     x_all_train.values, y_all_train, random_state=rand_seed)
 
 #%% regression
 svr = svm.SVR(C=svr_C, gamma=svr_gamma)
@@ -231,10 +232,22 @@ class Stacking(object):
         return y_predict
 
 #%% 5-fold stacking
-stacking = Stacking(n_folds=5,stacker=lm.Ridge(alpha=11.0),base_models=[enr,svr,regr,lsr])
-stacking.fit(x_train,y_train)
-stacking_y_valid_predict = stacking.predict(x_valid)
-print("stacking_valid_mse: {}".format(metrics.mean_squared_error(y_valid, stacking_y_valid_predict)))
+stacking = Stacking(n_folds=5, stacker=lm.Ridge(
+    alpha=11.0), base_models=[enr, svr, regr, lsr])
+folds = KFold(n_splits=5, shuffle=True, random_state=rand_seed).split(range(x_all_train.shape[0]))
+stacking_score = []
+for idx_train, idx_valid in folds:
+    X = np.array(x_all_train)
+    y = np.array(y_all_train)
+    x_train = X[idx_train]
+    x_valid = X[idx_valid]
+    y_train = y[idx_train]
+    y_valid = y[idx_valid]
+    stacking.fit(x_train,y_train)
+    stacking_y_valid_predict = stacking.predict(x_valid)
+    stacking_score.append(metrics.mean_squared_error(y_valid, stacking_y_valid_predict))
+stacking_score = np.array(stacking_score)
+print("stacking_valid_mse: {}".format(stacking_score.mean()))
 stacking.fit(x_all_train, y_all_train)
 stacking_y_all_predict = stacking.predict(x_all_train)
 print("stacking_all_mse: {}".format(
