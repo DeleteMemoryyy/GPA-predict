@@ -6,12 +6,14 @@ import pandas as pd
 from pandas import DataFrame as df
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
+from sklearn import tree
 from sklearn import preprocessing as prep
 from sklearn import ensemble
 from sklearn import linear_model as lm
-from sklearn import svm as svm
-from sklearn import metrics as metrics
+from sklearn import svm
+from sklearn import metrics
 from matplotlib import pyplot as plt
 import seaborn as sns
 
@@ -179,48 +181,105 @@ x_all_train = proc_data[proc_data['test_tag']!='test'].drop(other_columns,axis=1
 x_test = proc_data[proc_data['test_tag'] == 'test'].drop(other_columns, axis=1)
 result_data = proc_data['GPA'][proc_data['test_tag']!='test']
 y_all_train = ss_y.fit_transform(result_data.values.reshape(-1,1)).ravel()
-# x_train,x_valid,y_train,y_valid = train_test_split(x_all_train.values,y_all_train.values,
-#                                                 random_state=rand_seed)
+y_all_train = result_data.values
+x_train,x_valid,y_train,y_valid = train_test_split(x_all_train.values,y_all_train,random_state=rand_seed)
 
 #%% regression
-# SVR
 svr = svm.SVR(C=svr_C, gamma=svr_gamma)
-svr_score = -cross_val_score(svr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
-svr.fit(x_all_train, y_all_train)
-svr_y_all_predict = ss_y.inverse_transform(svr.predict(x_all_train))
-svr_y_test_predict = ss_y.inverse_transform(svr.predict(x_test))
-print("svr_valid_mse: {}".format(svr_score.mean()))
-print("svr_all_mse: {}".format(metrics.mean_squared_error(result_data,svr_y_all_predict)))
-
-# Ridge regression
 regr = lm.Ridge(alpha=regr_alpha)
-regr_score = -cross_val_score(regr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
-regr.fit(x_all_train, y_all_train)
-regr_y_all_predict = ss_y.inverse_transform(regr.predict(x_all_train))
-regr_y_test_predict = ss_y.inverse_transform(regr.predict(x_test))
-print("regr_valid_mse: {}".format(regr_score.mean()))
-print("regr_all_mse: {}".format(
-    metrics.mean_squared_error(result_data, regr_y_all_predict)))
-
-# Lasso regression
 lsr = lm.Lasso(alpha=lsr_alpha)
-lsr_score = -cross_val_score(lsr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
-lsr.fit(x_all_train, y_all_train)
-lsr_y_all_predict = ss_y.inverse_transform(lsr.predict(x_all_train))
-lsr_y_test_predict = ss_y.inverse_transform(lsr.predict(x_test))
-print("lsr_valid_mse: {}".format(lsr_score.mean()))
-print("lsr_all_mse: {}".format(
-    metrics.mean_squared_error(result_data, lsr_y_all_predict)))
-
-# Elastic Net regression
 enr = lm.ElasticNet(alpha=lsr_alpha,l1_ratio=enr_l1r)
-enr_score = -cross_val_score(enr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
-enr.fit(x_all_train, y_all_train)
-enr_y_all_predict = ss_y.inverse_transform(enr.predict(x_all_train))
-enr_y_test_predict = ss_y.inverse_transform(enr.predict(x_test))
-print("enr_valid_mse: {}".format(enr_score.mean()))
-print("enr_all_mse: {}".format(
-    metrics.mean_squared_error(result_data, enr_y_all_predict)))
+class Stacking(object):
+    def __init__(self, n_folds, stacker, base_models):
+        self.n_folds = n_folds
+        self.stacker = stacker
+        self.base_models = base_models
+
+    def fit_predict(self, X, y, T):
+        X = np.array(X)
+        y = np.array(y)
+        T = np.array(T)
+
+        kf = KFold(n_splits=self.n_folds, shuffle=True, random_state=rand_seed)
+
+        s_train = np.zeros((X.shape[0], len(self.base_models)))
+        s_test = np.zeros((T.shape[0], len(self.base_models)))
+
+        for i, mod in enumerate(self.base_models):
+            s_test_i = np.zeros((s_test.shape[0], kf.get_n_splits()))
+
+            j = 0
+            for idx_train, idx_valid in kf.split(range(len(y))):
+                x_train_j = X[idx_train]
+                y_train_j = y[idx_train]
+                x_valid_j = X[idx_valid]
+
+                mod.fit(x_train_j, y_train_j)
+
+                y_valid_j = mod.predict(x_valid_j)[:]
+                s_train[idx_valid, i] = y_valid_j
+                s_test_i[:, j] = mod.predict(T)[:]
+
+                j += 1
+
+            s_test[:, i] = s_test_i.mean(1)
+
+        self.stacker.fit(s_train, y)
+        y_predict = self.stacker.predict(s_test)[:]
+        print(s_train[0])
+        print(y[0])
+        print(s_test[0])
+        print(y_predict[0])
+
+        return y_predict
+#%% SVR
+# svr_score = -cross_val_score(svr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+# svr.fit(x_all_train, y_all_train)
+# svr_y_all_predict = ss_y.inverse_transform(svr.predict(x_all_train))
+# svr_y_test_predict = ss_y.inverse_transform(svr.predict(x_test))
+# print("svr_valid_mse: {}".format(svr_score.mean()))
+# print("svr_all_mse: {}".format(metrics.mean_squared_error(result_data,svr_y_all_predict)))
+
+#%% Ridge regression
+# regr_score = -cross_val_score(regr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+# regr.fit(x_all_train, y_all_train)
+# regr_y_all_predict = ss_y.inverse_transform(regr.predict(x_all_train))
+# regr_y_test_predict = ss_y.inverse_transform(regr.predict(x_test))
+# print("regr_valid_mse: {}".format(regr_score.mean()))
+# print("regr_all_mse: {}".format(
+#     metrics.mean_squared_error(result_data, regr_y_all_predict)))
+
+#%% Lasso regression
+# lsr_score = -cross_val_score(lsr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+# lsr.fit(x_all_train, y_all_train)
+# lsr_y_all_predict = ss_y.inverse_transform(lsr.predict(x_all_train))
+# lsr_y_test_predict = ss_y.inverse_transform(lsr.predict(x_test))
+# print("lsr_valid_mse: {}".format(lsr_score.mean()))
+# print("lsr_all_mse: {}".format(
+#     metrics.mean_squared_error(result_data, lsr_y_all_predict)))
+
+#%% Elastic Net regression
+# enr_score = -cross_val_score(enr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+# enr.fit(x_all_train, y_all_train)
+# enr_y_all_predict = ss_y.inverse_transform(enr.predict(x_all_train))
+# enr_y_test_predict = ss_y.inverse_transform(enr.predict(x_test))
+# print("enr_valid_mse: {}".format(enr_score.mean()))
+# print("enr_all_mse: {}".format(
+#     metrics.mean_squared_error(result_data, enr_y_all_predict)))
+
+#%% 5-ford stacking
+stacking = Stacking(n_folds=5,stacker=lm.Ridge(alpha=0.1),base_models=[enr,svr,regr,lsr])
+# stacking_y_valid_predict = ss_y.inverse_transform(stacking.fit_predict(
+#     X=x_train, y=y_train, T=x_valid))
+stacking_y_valid_predict = (stacking.fit_predict(
+    X=x_train, y=y_train, T=x_valid))
+stacking_y_all_predict = (stacking.fit_predict(
+    X=x_all_train, y=y_all_train, T=x_all_train))
+print("stacking_valid_mse: {}".format(metrics.mean_squared_error(y_valid,stacking_y_valid_predict)))
+print("stacking_all_mse: {}".format(
+    metrics.mean_squared_error(y_all_train, stacking_y_all_predict)))
+# stacking_y_test_predict = ss_y.inverse_transform(stacking.fit_predict(
+#     X=x_all_train, y=y_all_train, T=x_test))
 
 #%% save result
 # result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
@@ -233,32 +292,42 @@ print("enr_all_mse: {}".format(
 # result.to_csv('result/result_{}_svr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
 #             header=True,index=False,encoding='utf-8')
 
-result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
-result['GPA'] = regr_y_test_predict
-result.columns=['学生ID','综合GPA']
-insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
-above_result = result[:58]
-below_result = result[58:]
-result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-result.to_csv('result/result_{}_regr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
-            header=True,index=False,encoding='utf-8')
+# result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
+# result['GPA'] = regr_y_test_predict
+# result.columns=['学生ID','综合GPA']
+# insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
+# above_result = result[:58]
+# below_result = result[58:]
+# result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
+# result.to_csv('result/result_{}_regr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+#             header=True,index=False,encoding='utf-8')
 
-result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
-result['GPA'] = lsr_y_test_predict
-result.columns=['学生ID','综合GPA']
-insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
-above_result = result[:58]
-below_result = result[58:]
-result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-result.to_csv('result/result_{}_lsr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
-            header=True,index=False,encoding='utf-8')
+# result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
+# result['GPA'] = lsr_y_test_predict
+# result.columns=['学生ID','综合GPA']
+# insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
+# above_result = result[:58]
+# below_result = result[58:]
+# result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
+# result.to_csv('result/result_{}_lsr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+#             header=True,index=False,encoding='utf-8')
 
-result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
-result['GPA'] = enr_y_test_predict
-result.columns=['学生ID','综合GPA']
-insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
-above_result = result[:58]
-below_result = result[58:]
-result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-result.to_csv('result/result_{}_enr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
-            header=True,index=False,encoding='utf-8')
+# result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
+# result['GPA'] = enr_y_test_predict
+# result.columns=['学生ID','综合GPA']
+# insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
+# above_result = result[:58]
+# below_result = result[58:]
+# result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
+# result.to_csv('result/result_{}_enr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+#             header=True,index=False,encoding='utf-8')
+
+# result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
+# result['GPA'] = stacking_y_test_predict
+# result.columns=['学生ID','综合GPA']
+# insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
+# above_result = result[:58]
+# below_result = result[58:]
+# result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
+# result.to_csv('result/result_{}_stacking.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+#             header=True,index=False,encoding='utf-8')
