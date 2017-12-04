@@ -74,7 +74,6 @@ other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
 for i in range(all_data.shape[0]):
     if(all_data['test_tag'][i] != 'test' and all_data['GPA'][i] <= drop_gpa):
         all_data = all_data.drop(i, axis=0)
-all_data.index
 all_data.index = range(all_data.shape[0])
 
 # fill nan

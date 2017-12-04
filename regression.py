@@ -34,6 +34,7 @@ regr_alpha = 11.0
 lsr_alpha = 0.0005547
 enr_alpha = 0.0009649
 enr_l1r = 0.5
+gbr_n_estimators = 500
 
 rand_seed = 2017
 fill_in_gpa = 2.35815726
@@ -41,17 +42,13 @@ fill_in_gpa = 2.35815726
 ori_one_hot_columns = ['province', 'gender', 'test_year', 'nation', 'politics', 'color_blind',
                        'stu_type', 'lan_type', 'sub_type', 'birth_year', 'department', 'reward_type']
 
-ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade', 'center_progress', 'center_rank', 'center_var',
-                         'admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank',
-                         'high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize','competition']
+ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade', 'center_progress', 'center_rank','center_var','admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank','high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize','competition']
 
-drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank', 'center_progress', 'center_var',
-                'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
+drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank', 'center_progress', 'center_var', 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
 
 one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics','test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
 
-numerical_columns = ['admit_rank', 'school_num', 'center_grade', 'social',
-                     'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
+numerical_columns = ['admit_rank', 'school_num', 'center_grade', 'social', 'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
 
 other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
 
@@ -60,7 +57,6 @@ other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
 for i in range(proc_data.shape[0]):
     if(proc_data['test_tag'][i] != 'test' and proc_data['GPA'][i] <= drop_gpa):
         proc_data = proc_data.drop(i, axis=0)
-proc_data.index
 proc_data.index = range(proc_data.shape[0])
 
 # fill nan
@@ -182,14 +178,13 @@ x_all_train = proc_data[proc_data['test_tag']!='test'].drop(other_columns,axis=1
 x_test = proc_data[proc_data['test_tag'] == 'test'].drop(other_columns, axis=1)
 result_data = proc_data['GPA'][proc_data['test_tag']!='test']
 y_all_train = result_data.values
-# x_train, x_valid, y_train, y_valid = train_test_split(
-#     x_all_train.values, y_all_train, random_state=rand_seed)
 
 #%% regression
 svr = svm.SVR(C=svr_C, gamma=svr_gamma)
 regr = lm.Ridge(alpha=regr_alpha)
 lsr = lm.Lasso(alpha=lsr_alpha)
 enr = lm.ElasticNet(alpha=lsr_alpha,l1_ratio=enr_l1r)
+gbr = ensemble.GradientBoostingRegressor(loss='huber', max_features='sqrt',n_estimators=gbr_n_estimators)
 class Stacking(object):
     def __init__(self, n_folds, stacker, base_models):
         self.n_folds = n_folds
@@ -233,7 +228,7 @@ class Stacking(object):
 
 #%% 5-fold stacking
 stacking = Stacking(n_folds=5, stacker=lm.Ridge(
-    alpha=11.0), base_models=[enr, svr, regr, lsr])
+    alpha=11.0), base_models=[enr, regr, lsr, svr, gbr])
 folds = KFold(n_splits=5, shuffle=True, random_state=rand_seed).split(range(x_all_train.shape[0]))
 stacking_score = []
 for idx_train, idx_valid in folds:
@@ -247,10 +242,11 @@ for idx_train, idx_valid in folds:
     stacking_y_valid_predict = stacking.predict(x_valid)
     stacking_score.append(metrics.mean_squared_error(y_valid, stacking_y_valid_predict))
 stacking_score = np.array(stacking_score)
-print("stacking_valid_mse: {}".format(stacking_score.mean()))
+print('stacking_valid_mse: {}'.format(stacking_score.mean()))
+print('stacking_valid_mse_std: {}'.format(stacking_score.std()))
 stacking.fit(x_all_train, y_all_train)
 stacking_y_all_predict = stacking.predict(x_all_train)
-print("stacking_all_mse: {}".format(
+print('stacking_all_mse: {}'.format(
     metrics.mean_squared_error(y_all_train, stacking_y_all_predict)))
 stacking_y_test_predict = stacking.predict(x_test)
 
@@ -262,25 +258,32 @@ insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['å­¦ç
 above_result = result[:58]
 below_result = result[58:]
 result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-result.to_csv('result/result_{}_stacking.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+result.to_csv('result/result_{}_stacking.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime())),
             header=True,index=False,encoding='utf-8')
-
 
 #%% SVR
 # svr_score = -cross_val_score(svr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
 # svr.fit(x_all_train, y_all_train)
 # svr_y_all_predict = svr.predict(x_all_train)
 # svr_y_test_predict = svr.predict(x_test)
-# print("svr_valid_mse: {}".format(svr_score.mean()))
-# print("svr_all_mse: {}".format(metrics.mean_squared_error(result_data,svr_y_all_predict)))
+# print('svr_valid_mse: {}'.format(svr_score.mean()))
+# print('svr_all_mse: {}'.format(metrics.mean_squared_error(result_data,svr_y_all_predict)))
+
+#%% GBR
+# gbr_score = -cross_val_score(gbr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+# gbr.fit(x_all_train, y_all_train)
+# gbr_y_all_predict = gbr.predict(x_all_train)
+# gbr_y_test_predict = gbr.predict(x_test)
+# print('gbr_valid_mse: {}'.format(gbr_score.mean()))
+# print('gbr_all_mse: {}'.format(metrics.mean_squared_error(result_data,gbr_y_all_predict)))
 
 #%% Ridge regression
 # regr_score = -cross_val_score(regr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
 # regr.fit(x_all_train, y_all_train)
 # regr_y_all_predict = regr.predict(x_all_train)
 # regr_y_test_predict = regr.predict(x_test)
-# print("regr_valid_mse: {}".format(regr_score.mean()))
-# print("regr_all_mse: {}".format(
+# print('regr_valid_mse: {}'.format(regr_score.mean()))
+# print('regr_all_mse: {}'.format(
 #     metrics.mean_squared_error(result_data, regr_y_all_predict)))
 
 #%% Lasso regression
@@ -288,8 +291,8 @@ result.to_csv('result/result_{}_stacking.csv'.format(time.strftime("%b_%d_%H-%M-
 # lsr.fit(x_all_train, y_all_train)
 # lsr_y_all_predict = lsr.predict(x_all_train)
 # lsr_y_test_predict = lsr.predict(x_test)
-# print("lsr_valid_mse: {}".format(lsr_score.mean()))
-# print("lsr_all_mse: {}".format(
+# print('lsr_valid_mse: {}'.format(lsr_score.mean()))
+# print('lsr_all_mse: {}'.format(
 #     metrics.mean_squared_error(result_data, lsr_y_all_predict)))
 
 #%% Elastic Net regression
@@ -297,8 +300,8 @@ result.to_csv('result/result_{}_stacking.csv'.format(time.strftime("%b_%d_%H-%M-
 # enr.fit(x_all_train, y_all_train)
 # enr_y_all_predict = enr.predict(x_all_train)
 # enr_y_test_predict = enr.predict(x_test)
-# print("enr_valid_mse: {}".format(enr_score.mean()))
-# print("enr_all_mse: {}".format(
+# print('enr_valid_mse: {}'.format(enr_score.mean()))
+# print('enr_all_mse: {}'.format(
 #     metrics.mean_squared_error(result_data, enr_y_all_predict)))
 
 
@@ -309,7 +312,7 @@ result.to_csv('result/result_{}_stacking.csv'.format(time.strftime("%b_%d_%H-%M-
 # above_result = result[:58]
 # below_result = result[58:]
 # result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-# result.to_csv('result/result_{}_svr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+# result.to_csv('result/result_{}_svr.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime())),
 #             header=True,index=False,encoding='utf-8')
 
 # result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
@@ -319,7 +322,7 @@ result.to_csv('result/result_{}_stacking.csv'.format(time.strftime("%b_%d_%H-%M-
 # above_result = result[:58]
 # below_result = result[58:]
 # result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-# result.to_csv('result/result_{}_regr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+# result.to_csv('result/result_{}_regr.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime())),
 #             header=True,index=False,encoding='utf-8')
 
 # result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
@@ -329,7 +332,7 @@ result.to_csv('result/result_{}_stacking.csv'.format(time.strftime("%b_%d_%H-%M-
 # above_result = result[:58]
 # below_result = result[58:]
 # result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-# result.to_csv('result/result_{}_lsr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+# result.to_csv('result/result_{}_lsr.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime())),
 #             header=True,index=False,encoding='utf-8')
 
 # result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
@@ -339,5 +342,5 @@ result.to_csv('result/result_{}_stacking.csv'.format(time.strftime("%b_%d_%H-%M-
 # above_result = result[:58]
 # below_result = result[58:]
 # result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-# result.to_csv('result/result_{}_enr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+# result.to_csv('result/result_{}_enr.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime())),
 #             header=True,index=False,encoding='utf-8')

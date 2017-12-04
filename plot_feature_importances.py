@@ -74,7 +74,6 @@ other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
 for i in range(all_data.shape[0]):
     if(all_data['test_tag'][i] != 'test' and all_data['GPA'][i] <= drop_gpa):
         all_data = all_data.drop(i, axis=0)
-all_data.index
 all_data.index = range(all_data.shape[0])
 
 # fill nan
@@ -201,10 +200,10 @@ x_all_train = pd.concat([train_data[ori_one_hot_columns],
                          train_data[ori_numerical_columns]], ignore_index=True, axis=1)
 y_all_train = train_data['GPA']
 
-rfr = ensemble.RandomForestRegressor(oob_score=True)
-grid = GridSearchCV(rfr, param_grid={'n_estimators':range(10,101,10)},cv=5)
-grid.fit(x_all_train,y_all_train)
-print('Best n_estimators: {}'.format(grid.best_params_['n_estimators']))
+# rfr = ensemble.RandomForestRegressor(oob_score=True)
+# grid = GridSearchCV(rfr, param_grid={'n_estimators':range(10,101,10)},cv=5)
+# grid.fit(x_all_train,y_all_train)
+# print('Best n_estimators: {}'.format(grid.best_params_['n_estimators']))
 
 rfr = ensemble.RandomForestRegressor(n_estimators=50,oob_score=True)
 rfr_score = -cross_val_score(rfr, x_all_train,

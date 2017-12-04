@@ -16,28 +16,35 @@ import seaborn as sns
 
 
 if __name__ == '__main__':
-
-    # all_data = pd.ExcelFile('data/ALLDATA.xlsx').parse('Sheet1')
-
-    # proc_data = pd.ExcelFile('data/ALLDATA.xlsx').parse('Sheet1')
     all_data = pd.read_csv('data/ALLDATA.csv')
     dpart_rank = pd.read_csv('data/depart_rank.csv')
-    all_data = pd.concat([all_data, dpart_rank], axis=1)
+    center_progress = pd.read_csv('data/center_progress.csv')
+    center_rank = pd.read_csv('data/center_rank.csv')
+    center_var = pd.read_csv('data/center_var.csv')
+    all_data = pd.concat(
+        [all_data, dpart_rank, center_progress, center_rank, center_var], axis=1)
     proc_data = all_data
 
     drop_gpa = 0.5
 
-    rand_seed = 33
+    svr_C = 200
+    svr_gamma = 0.001
+    regr_alpha = 11.0
+    lsr_alpha = 0.0005547
+    enr_alpha = 0.0009649
+    enr_l1r = 0.5
+
+    rand_seed = 2017
+    fill_in_gpa = 2.35815726
 
     ori_one_hot_columns = ['province', 'gender', 'test_year', 'nation', 'politics', 'color_blind',
                         'stu_type', 'lan_type', 'sub_type', 'birth_year', 'department', 'reward_type']
 
-    ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade',
-                            'admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank',
-                            'high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize', 'competition']
+    ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade', 'center_progress', 'center_rank', 'center_var', 'admit_grade', 'admit_rank',
+                            'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank', 'high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize', 'competition']
 
-    drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',
-                    'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
+    drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank',
+                    'center_progress', 'center_var', 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
 
     one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics',
                     'test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
@@ -47,8 +54,7 @@ if __name__ == '__main__':
 
     other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
 
-
-    # preprocess features
+   # preprocess features
     # drop outlier
     for i in range(proc_data.shape[0]):
         if(proc_data['test_tag'][i] != 'test' and proc_data['GPA'][i] <= drop_gpa):
@@ -79,14 +85,15 @@ if __name__ == '__main__':
         elif (test_age >= 20):
             test_age = 20
         return test_age
-    proc_data['birth_year'] = proc_data.apply(process_birth_year, axis=1)
 
-    # process high_rank
-    tmp_high_rank = all_data['high_rank']
-    for i in range(all_data.shape[0]):
-        if(all_data['high_rank'][i] >= 0.5):
-            tmp_high_rank[i] = all_data['high_rank'][i] / 350.0
-    all_data['high_rank'] = tmp_high_rank
+        tmp_high_rank = all_data['high_rank']
+        for i in range(all_data.shape[0]):
+            if(all_data['high_rank'][i] >= 0.5):
+                tmp_high_rank[i] = all_data['high_rank'][i] / 350.0
+        all_data['high_rank'] = tmp_high_rank
+
+
+    proc_data['birth_year'] = proc_data.apply(process_birth_year, axis=1)
 
     # process sight
     def process_sight(x):
@@ -164,17 +171,13 @@ if __name__ == '__main__':
 
     # one-hot processing
     proc_data[one_hot_columns] = proc_data[one_hot_columns].fillna('Empty')
-    proc_data = pd.merge(proc_data, pd.get_dummies(
-        proc_data, columns=one_hot_columns))
-    proc_data = proc_data.drop(one_hot_columns, axis=1)
+    proc_data = pd.get_dummies(proc_data, columns=one_hot_columns)
 
     # drop features
     proc_data = proc_data.drop(drop_columns, axis=1)
-    # proc_data = proc_data.drop(other_columns,axis=1)
 
     # standardization
     ss_x = prep.StandardScaler()
-    ss_y = prep.StandardScaler()
     proc_data[numerical_columns] = ss_x.fit_transform(
         proc_data[numerical_columns].values)
 
@@ -183,17 +186,19 @@ if __name__ == '__main__':
                             != 'test'].drop(other_columns, axis=1)
     x_test = proc_data[proc_data['test_tag'] == 'test'].drop(other_columns, axis=1)
     result_data = proc_data['GPA'][proc_data['test_tag'] != 'test']
-    # FIXME: ss_y should be used
-    y_all_train = result_data
+    y_all_train = result_data.values
+    # x_train, x_valid, y_train, y_valid = train_test_split(
+    #     x_all_train.values, y_all_train, random_state=rand_seed)
+
 
     # #%% SVR grid search
-    # grid = GridSearchCV(svm.SVR(), param_grid={'C':[400,500,600], 'gamma': [0.0001,0.001]}, cv=4,
+    # svr_grid = GridSearchCV(svm.SVR(), param_grid={'C':[400,500,600], 'gamma': [0.0001,0.001]}, cv=4,
     #                     scoring='neg_mean_squared_error',verbose=1,n_jobs=4)
-    # grid.fit(x_all_train,y_all_train)
-    # print('Best svm parameters: {}'.format(grid.best_params_))
+    # svr_grid.fit(x_all_train,y_all_train)
+    # print('Best svr parameters: {}'.format(svr_grid.best_params_))
 
     # #%% SVR
-    # svr = grid.best_estimator_
+    # svr = svr_grid.best_estimator_
     # svr_score = -cross_val_score(svr,x_all_train,y_all_train,cv=4,scoring='neg_mean_squared_error')
     # svr.fit(x_all_train, y_all_train)
     # svr_y_all_predict = svr.predict(x_all_train)
@@ -201,52 +206,69 @@ if __name__ == '__main__':
     # print("svr_valid_mse: {}".format(svr_score.mean()))
     # print("svr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,svr_y_all_predict)))
 
-    #%% RidgeCV search
-    regr_cv = lm.RidgeCV(alphas=[0.1, 1, 11, 21],
-                         scoring='neg_mean_squared_error')
-    regr_cv.fit(x_all_train, y_all_train)
-    print('Best Ridge alpha: {}'.format(regr_cv.alpha_))
+    # #%% GradientBoosting regression
+    gbr_grid = GridSearchCV(ensemble.GradientBoostingRegressor(loss='huber',max_features='sqrt'),param_grid={
+        'n_estimators': [25, 50, 100, 200], 'learning_rate':[0.001,0.01,0.1],'max_depth':[3,5,7]},scoring='neg_mean_squared_error',verbose=1,n_jobs=4)
+    gbr_grid.fit(x_all_train,y_all_train)
+    print('Best gbr parameters: {}'.format(gbr_grid.best_params_))
 
-    #%% Ridge regression
-    regr = lm.Ridge(alpha=regr_cv.alpha_)
-    regr_score = -cross_val_score(
-        regr, x_all_train, y_all_train, cv=4, scoring='neg_mean_squared_error')
-    regr.fit(x_all_train, y_all_train)
-    regr_y_all_predict = regr.predict(x_all_train)
-    regr_y_test_predict = regr.predict(x_test)
-    print("regr_valid_mse: {}".format(regr_score.mean()))
-    print("regr_all_mse: {}".format(
-        metrics.mean_squared_error(y_all_train, regr_y_all_predict)))
+    # #%% GBR
+    gbr = gbr_grid.best_estimator_
+    gbr_score = -cross_val_score(gbr, x_all_train,
+                                 y_all_train, cv=4, scoring='neg_mean_squared_error')
+    gbr.fit(x_all_train,y_all_train)
+    gbr_y_all_predict = gbr.predict(x_all_train)
+    gbr_y_test_predict = gbr.predict(x_test)
+    print("gbr_valid_mse: {}".format(gbr_score.mean()))
+    print("gbr_all_mse: {}".format(
+        metrics.mean_squared_error(y_all_train, gbr_y_all_predict)))
 
-    #%% LassoCV search
-    lsr_cv = lm.LassoCV()
-    lsr_cv.fit(x_all_train, y_all_train)
-    print('Best Lasso alpha: {}'.format(lsr_cv.alpha_))
+    # #%% RidgeCV search
+    # regr_cv = lm.RidgeCV(alphas=[0.1, 1, 11, 21],
+    #                      scoring='neg_mean_squared_error')
+    # regr_cv.fit(x_all_train, y_all_train)
+    # print('Best Ridge alpha: {}'.format(regr_cv.alpha_))
 
-    #%% Lasso regression
-    lsr = lm.Ridge(alpha=lsr_cv.alpha_)
-    lsr_score = -cross_val_score(
-        lsr, x_all_train, y_all_train, cv=4, scoring='neg_mean_squared_error')
-    lsr.fit(x_all_train, y_all_train)
-    lsr_y_all_predict = lsr.predict(x_all_train)
-    lsr_y_test_predict = lsr.predict(x_test)
-    print("lsr_valid_mse: {}".format(lsr_score.mean()))
-    print("lsr_all_mse: {}".format(
-        metrics.mean_squared_error(y_all_train, lsr_y_all_predict)))
+    # #%% Ridge regression
+    # regr = lm.Ridge(alpha=regr_cv.alpha_)
+    # regr_score = -cross_val_score(
+    #     regr, x_all_train, y_all_train, cv=4, scoring='neg_mean_squared_error')
+    # regr.fit(x_all_train, y_all_train)
+    # regr_y_all_predict = regr.predict(x_all_train)
+    # regr_y_test_predict = regr.predict(x_test)
+    # print("regr_valid_mse: {}".format(regr_score.mean()))
+    # print("regr_all_mse: {}".format(
+    #     metrics.mean_squared_error(y_all_train, regr_y_all_predict)))
 
-#%% ElasticNetCV search
-    enr_cv = lm.ElasticNetCV(l1_ratio=0.5)
-    enr_cv.fit(x_all_train, y_all_train)
-    print('Best ElasticNet alpha: {0}, l1_ratio: {1}'.format(
-        enr_cv.alpha_, enr_cv.l1_ratio_))
+    # #%% LassoCV search
+    # lsr_cv = lm.LassoCV()
+    # lsr_cv.fit(x_all_train, y_all_train)
+    # print('Best Lasso alpha: {}'.format(lsr_cv.alpha_))
 
-    #%% Elastic Net regression
-    enr = lm.ElasticNet(alpha=enr_cv.alpha_, l1_ratio=enr_cv.l1_ratio_)
-    enr_score = -cross_val_score(
-        enr, x_all_train, y_all_train, cv=4, scoring='neg_mean_squared_error')
-    enr.fit(x_all_train, y_all_train)
-    enr_y_all_predict = enr.predict(x_all_train)
-    enr_y_test_predict = enr.predict(x_test)
-    print("enr_valid_mse: {}".format(enr_score.mean()))
-    print("enr_all_mse: {}".format(
-        metrics.mean_squared_error(y_all_train, enr_y_all_predict)))
+    # #%% Lasso regression
+    # lsr = lm.Ridge(alpha=lsr_cv.alpha_)
+    # lsr_score = -cross_val_score(
+    #     lsr, x_all_train, y_all_train, cv=4, scoring='neg_mean_squared_error')
+    # lsr.fit(x_all_train, y_all_train)
+    # lsr_y_all_predict = lsr.predict(x_all_train)
+    # lsr_y_test_predict = lsr.predict(x_test)
+    # print("lsr_valid_mse: {}".format(lsr_score.mean()))
+    # print("lsr_all_mse: {}".format(
+    #     metrics.mean_squared_error(y_all_train, lsr_y_all_predict)))
+
+    # #%% ElasticNetCV search
+    # enr_cv = lm.ElasticNetCV(l1_ratio=0.5)
+    # enr_cv.fit(x_all_train, y_all_train)
+    # print('Best ElasticNet alpha: {0}, l1_ratio: {1}'.format(
+    #     enr_cv.alpha_, enr_cv.l1_ratio_))
+
+    # #%% Elastic Net regression
+    # enr = lm.ElasticNet(alpha=enr_cv.alpha_, l1_ratio=enr_cv.l1_ratio_)
+    # enr_score = -cross_val_score(
+    #     enr, x_all_train, y_all_train, cv=4, scoring='neg_mean_squared_error')
+    # enr.fit(x_all_train, y_all_train)
+    # enr_y_all_predict = enr.predict(x_all_train)
+    # enr_y_test_predict = enr.predict(x_test)
+    # print("enr_valid_mse: {}".format(enr_score.mean()))
+    # print("enr_all_mse: {}".format(
+    #     metrics.mean_squared_error(y_all_train, enr_y_all_predict)))
