@@ -141,7 +141,6 @@ def process_sight(x):
         return 3.5
     else:
         return np.nan
-
 proc_data['left_sight'] = proc_data['left_sight'].apply(process_sight)
 proc_data['right_sight'] = proc_data['right_sight'].apply(process_sight)
 proc_data['left_sight'] = proc_data['left_sight'].fillna(
@@ -228,6 +227,28 @@ class Stacking(object):
 
         return y_predict
 
+#%% 5-fold stacking
+stacking = Stacking(n_folds=5,stacker=lm.Ridge(alpha=11.0),base_models=[enr,svr,regr,lsr])
+stacking.fit(x_train,y_train)
+stacking_y_valid_predict = stacking.predict(x_valid)
+print("stacking_valid_mse: {}".format(metrics.mean_squared_error(y_valid, stacking_y_valid_predict)))
+stacking.fit(x_all_train, y_all_train)
+stacking_y_all_predict = stacking.predict(x_all_train)
+print("stacking_all_mse: {}".format(
+    metrics.mean_squared_error(y_all_train, stacking_y_all_predict)))
+stacking_y_test_predict = stacking.predict(x_test)
+
+#%% save result
+result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
+result['GPA'] = stacking_y_test_predict
+result.columns=['学生ID','综合GPA']
+insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
+above_result = result[:58]
+below_result = result[58:]
+result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
+result.to_csv('result/result_{}_stacking.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
+            header=True,index=False,encoding='utf-8')
+
 
 #%% SVR
 # svr_score = -cross_val_score(svr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
@@ -264,18 +285,7 @@ class Stacking(object):
 # print("enr_all_mse: {}".format(
 #     metrics.mean_squared_error(result_data, enr_y_all_predict)))
 
-#%% 5-ford stacking
-stacking = Stacking(n_folds=5,stacker=lm.Ridge(alpha=11.0),base_models=[enr,svr,regr,lsr])
-stacking.fit(x_train,y_train)
-stacking_y_valid_predict = stacking.predict(x_valid)
-print("stacking_valid_mse: {}".format(metrics.mean_squared_error(y_valid, stacking_y_valid_predict)))
-stacking.fit(x_all_train, y_all_train)
-stacking_y_all_predict = stacking.predict(x_all_train)
-print("stacking_all_mse: {}".format(
-    metrics.mean_squared_error(y_all_train, stacking_y_all_predict)))
-stacking_y_test_predict = stacking.predict(x_test)
 
-#%% save result
 # result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
 # result['GPA'] = svr_y_test_predict
 # result.columns=['学生ID','综合GPA']
@@ -315,13 +325,3 @@ stacking_y_test_predict = stacking.predict(x_test)
 # result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
 # result.to_csv('result/result_{}_enr.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
 #             header=True,index=False,encoding='utf-8')
-
-result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
-result['GPA'] = stacking_y_test_predict
-result.columns=['学生ID','综合GPA']
-insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
-above_result = result[:58]
-below_result = result[58:]
-result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-result.to_csv('result/result_{}_stacking.csv'.format(time.strftime("%b_%d_%H-%M-%S",time.localtime())),
-            header=True,index=False,encoding='utf-8')

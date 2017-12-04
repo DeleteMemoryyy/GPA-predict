@@ -181,6 +181,7 @@ all_data['nation'] = temp_nation
 
 train_data = all_data[all_data['test_tag']!='test']
 
+#%% show plot of every feature
 # for col in all_data.columns:
 #     if (col in ori_one_hot_columns):
 #         sns.boxplot(x=col,y='GPA',data=train_data)
@@ -205,7 +206,7 @@ y_all_train = train_data['GPA']
 # grid.fit(x_all_train,y_all_train)
 # print('Best n_estimators: {}'.format(grid.best_params_['n_estimators']))
 
-rfr = ensemble.RandomForestRegressor(n_estimators=10,oob_score=True)
+rfr = ensemble.RandomForestRegressor(n_estimators=50,oob_score=True)
 rfr_score = -cross_val_score(rfr, x_all_train,
                              y_all_train, cv=5, scoring='neg_mean_squared_error')
 rfr.fit(x_all_train, y_all_train)
