@@ -31,6 +31,7 @@ enr_alpha = 0.0009649
 enr_l1r = 0.5
 
 rand_seed = 33
+fill_in_gpa = 2.35815726
 
 ori_one_hot_columns = ['province', 'gender', 'test_year', 'nation', 'politics', 'color_blind',
                        'stu_type', 'lan_type', 'sub_type', 'birth_year', 'department', 'reward_type']
@@ -235,7 +236,7 @@ print("enr_all_mse: {}".format(
 result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
 result['GPA'] = regr_y_test_predict
 result.columns=['学生ID','综合GPA']
-insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
+insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
 above_result = result[:58]
 below_result = result[58:]
 result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
@@ -245,7 +246,7 @@ result.to_csv('result/result_{}_regr.csv'.format(time.strftime("%b_%d_%H-%M-%S",
 result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
 result['GPA'] = lsr_y_test_predict
 result.columns=['学生ID','综合GPA']
-insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
+insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
 above_result = result[:58]
 below_result = result[58:]
 result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
@@ -255,7 +256,7 @@ result.to_csv('result/result_{}_lsr.csv'.format(time.strftime("%b_%d_%H-%M-%S",t
 result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
 result['GPA'] = enr_y_test_predict
 result.columns=['学生ID','综合GPA']
-insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
+insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
 above_result = result[:58]
 below_result = result[58:]
 result = pd.concat([above_result,insert_line,below_result],ignore_index=True)

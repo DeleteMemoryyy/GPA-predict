@@ -23,7 +23,7 @@ sns.set(style='white', color_codes=True)
 myfont = FontProperties(fname=r'C:\Windows\Fonts\simhei.ttf', size=14)
 sns.set(font=myfont.get_name())
 
-
+all_data['grade']
 # all_data = pd.ExcelFile('data/ALLDATA.xlsx').parse('Sheet1')
 all_data = pd.read_csv('data/ALLDATA.csv')
 dpart_rank = pd.read_csv('data/depart_rank.csv')
