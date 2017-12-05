@@ -16,13 +16,13 @@ import seaborn as sns
 
 
 if __name__ == '__main__':
+    # proc_data = pd.ExcelFile('data/ALLDATA.xlsx').parse('Sheet1')
     all_data = pd.read_csv('data/ALLDATA.csv')
     dpart_rank = pd.read_csv('data/depart_rank.csv')
     center_progress = pd.read_csv('data/center_progress.csv')
     center_rank = pd.read_csv('data/center_rank.csv')
     center_var = pd.read_csv('data/center_var.csv')
-    all_data = pd.concat(
-        [all_data, dpart_rank, center_progress, center_rank, center_var], axis=1)
+    all_data = pd.concat([all_data, dpart_rank,center_progress,center_rank,center_var], axis=1)
     proc_data = all_data
 
     drop_gpa = 0.5
@@ -33,6 +33,7 @@ if __name__ == '__main__':
     lsr_alpha = 0.0005547
     enr_alpha = 0.0009649
     enr_l1r = 0.5
+    gbr_n_estimators = 500
 
     rand_seed = 2017
     fill_in_gpa = 2.35815726
@@ -40,34 +41,28 @@ if __name__ == '__main__':
     ori_one_hot_columns = ['province', 'gender', 'test_year', 'nation', 'politics', 'color_blind',
                         'stu_type', 'lan_type', 'sub_type', 'birth_year', 'department', 'reward_type']
 
-    ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade', 'center_progress', 'center_rank', 'center_var', 'admit_grade', 'admit_rank',
-                            'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank', 'high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize', 'competition']
+    ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade', 'center_progress', 'center_rank','center_var','admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank','high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize','competition']
 
-    drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank',
-                    'center_progress', 'center_var', 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
+    drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank', 'center_progress', 'center_var', 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
 
-    one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics',
-                    'test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
+    one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics','test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
 
-    numerical_columns = ['admit_rank', 'school_num', 'center_grade', 'social',
-                        'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
+    numerical_columns = ['admit_rank', 'school_num', 'center_grade', 'social', 'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
 
     other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
 
-   # preprocess features
+    # preprocess features
     # drop outlier
     for i in range(proc_data.shape[0]):
-        if(proc_data['test_tag'][i] != 'test' and proc_data['GPA'][i] <= drop_gpa):
+        if proc_data['test_tag'][i] != 'test' and proc_data['GPA'][i] <= drop_gpa:
             proc_data = proc_data.drop(i, axis=0)
     proc_data.index = range(proc_data.shape[0])
 
     # fill nan
-    proc_data['rank_var'] = proc_data['rank_var'].fillna(
-        proc_data['rank_var'].mean())
+    proc_data['rank_var'] = proc_data['rank_var'].fillna(proc_data['rank_var'].mean())
     proc_data['high_rank'] = proc_data['high_rank'].fillna(
         proc_data['high_rank'].mean())
-    proc_data['progress'] = proc_data['progress'].fillna(
-        proc_data['progress'].mean())
+    proc_data['progress'] = proc_data['progress'].fillna(proc_data['progress'].mean())
     proc_data['admit_grade'] = proc_data['admit_grade'].fillna(
         proc_data['admit_grade'].mean())
     proc_data['center_grade'] = proc_data['center_grade'].fillna(0)
@@ -80,73 +75,71 @@ if __name__ == '__main__':
     # process birth_year
     def process_birth_year(x):
         test_age = x['test_year'] - x['birth_year']
-        if (test_age <= 15):
+        if test_age <= 15:
             test_age = 15
-        elif (test_age >= 20):
+        elif test_age >= 20:
             test_age = 20
         return test_age
 
-        tmp_high_rank = all_data['high_rank']
-        for i in range(all_data.shape[0]):
-            if(all_data['high_rank'][i] >= 0.5):
-                tmp_high_rank[i] = all_data['high_rank'][i] / 350.0
-        all_data['high_rank'] = tmp_high_rank
-
+    # process high_rank
+    tmp_high_rank = all_data['high_rank']
+    for i in range(all_data.shape[0]):
+        if all_data['high_rank'][i] >= 0.5:
+            tmp_high_rank[i] = all_data['high_rank'][i] / 350.0
+    all_data['high_rank'] = tmp_high_rank
 
     proc_data['birth_year'] = proc_data.apply(process_birth_year, axis=1)
 
     # process sight
     def process_sight(x):
-        if (x == np.nan):
+        if x == np.nan:
             return x
-        if(x >= 3.0):
+        if x >= 3.0:
             return x
-        elif (x >= 2.0 and x < 3.0):
+        elif x >= 2.0 and x < 3.0:
                 return 5.3
-        elif (x >= 1.5 and x < 2.0):
+        elif x >= 1.5 and x < 2.0:
             return 5.2
-        elif (x >= 1.2 and x < 1.5):
+        elif x >= 1.2 and x < 1.5:
             return 5.1
-        elif (x >= 1.0 and x < 1.2):
+        elif x >= 1.0 and x < 1.2:
             return 5.0
-        elif (x >= 1.0 and x < 1.2):
+        elif x >= 1.0 and x < 1.2:
             return 5.0
-        elif (x >= 0.8 and x < 1.0):
+        elif x >= 0.8 and x < 1.0:
             return 4.9
-        elif (x >= 0.6 and x < 0.8):
+        elif x >= 0.6 and x < 0.8:
             return 4.8
-        elif (x >= 0.5 and x < 0.6):
+        elif x >= 0.5 and x < 0.6:
             return 4.7
-        elif (x >= 0.4 and x < 0.5):
+        elif x >= 0.4 and x < 0.5:
             return 4.6
-        elif (x >= 0.3 and x < 0.4):
+        elif x >= 0.3 and x < 0.4:
             return 4.5
-        elif (x >= 0.25 and x < 0.3):
+        elif x >= 0.25 and x < 0.3:
             return 4.4
-        elif (x >= 0.2 and x < 0.25):
+        elif x >= 0.2 and x < 0.25:
             return 4.3
-        elif (x >= 0.15 and x < 0.2):
+        elif x >= 0.15 and x < 0.2:
             return 4.2
-        elif (x >= 0.12 and x < 0.15):
+        elif x >= 0.12 and x < 0.15:
             return 4.1
-        elif (x >= 0.1 and x < 0.12):
+        elif x >= 0.1 and x < 0.12:
             return 4.0
-        elif (x >= 0.08 and x < 0.1):
+        elif x >= 0.08 and x < 0.1:
             return 3.9
-        elif (x >= 0.08 and x < 0.1):
+        elif x >= 0.08 and x < 0.1:
             return 3.9
-        elif (x >= 0.06 and x < 0.08):
+        elif x >= 0.06 and x < 0.08:
             return 3.8
-        elif (x >= 0.05 and x < 0.06):
+        elif x >= 0.05 and x < 0.06:
             return 3.7
-        elif (x >= 0.04 and x < 0.05):
+        elif x >= 0.04 and x < 0.05:
             return 3.6
-        elif (x >= 0.03 and x < 0.04):
+        elif x >= 0.03 and x < 0.04:
             return 3.5
         else:
             return np.nan
-
-
     proc_data['left_sight'] = proc_data['left_sight'].apply(process_sight)
     proc_data['right_sight'] = proc_data['right_sight'].apply(process_sight)
     proc_data['left_sight'] = proc_data['left_sight'].fillna(
@@ -158,12 +151,12 @@ if __name__ == '__main__':
     d_nation = {}
     temp_nation = []
     for i in range(proc_data.shape[0]):
-        if (proc_data['nation'][i] in d_nation.keys()):
-                d_nation[proc_data['nation'][i]] += 1
+        if proc_data['nation'][i] in d_nation.keys():
+            d_nation[proc_data['nation'][i]] += 1
         else:
             d_nation[proc_data['nation'][i]] = 1
     for i in range(proc_data.shape[0]):
-        if (d_nation[proc_data['nation'][i]] <= 6):
+        if d_nation[proc_data['nation'][i]] <= 6:
             temp_nation.append('少数民族')
         else:
             temp_nation.append(proc_data['nation'][i])
@@ -174,22 +167,17 @@ if __name__ == '__main__':
     proc_data = pd.get_dummies(proc_data, columns=one_hot_columns)
 
     # drop features
-    proc_data = proc_data.drop(drop_columns, axis=1)
+    proc_data = proc_data.drop(drop_columns,axis=1)
 
     # standardization
     ss_x = prep.StandardScaler()
-    proc_data[numerical_columns] = ss_x.fit_transform(
-        proc_data[numerical_columns].values)
+    proc_data[numerical_columns] = ss_x.fit_transform(proc_data[numerical_columns].values)
 
     # spilt training data
-    x_all_train = proc_data[proc_data['test_tag']
-                            != 'test'].drop(other_columns, axis=1)
+    x_all_train = proc_data[proc_data['test_tag']!='test'].drop(other_columns,axis=1)
     x_test = proc_data[proc_data['test_tag'] == 'test'].drop(other_columns, axis=1)
-    result_data = proc_data['GPA'][proc_data['test_tag'] != 'test']
+    result_data = proc_data['GPA'][proc_data['test_tag']!='test']
     y_all_train = result_data.values
-    # x_train, x_valid, y_train, y_valid = train_test_split(
-    #     x_all_train.values, y_all_train, random_state=rand_seed)
-
 
     # #%% SVR grid search
     # svr_grid = GridSearchCV(svm.SVR(), param_grid={'C':[400,500,600], 'gamma': [0.0001,0.001]}, cv=4,
@@ -207,21 +195,37 @@ if __name__ == '__main__':
     # print("svr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,svr_y_all_predict)))
 
     # #%% GradientBoosting regression
-    gbr_grid = GridSearchCV(ensemble.GradientBoostingRegressor(loss='huber',max_features='sqrt'),param_grid={
-        'n_estimators': [25, 50, 100, 200], 'learning_rate':[0.001,0.01,0.1],'max_depth':[3,5,7]},scoring='neg_mean_squared_error',verbose=1,n_jobs=4)
-    gbr_grid.fit(x_all_train,y_all_train)
-    print('Best gbr parameters: {}'.format(gbr_grid.best_params_))
+    # gbr_grid = GridSearchCV(ensemble.GradientBoostingRegressor(loss='huber',max_features='sqrt'),param_grid={
+    #     'n_estimators': [25, 50, 100, 200], 'learning_rate':[0.001,0.01,0.1],'max_depth':[3,5,7]},scoring='neg_mean_squared_error',verbose=1,n_jobs=4)
+    # gbr_grid.fit(x_all_train,y_all_train)
+    # print('Best gbr parameters: {}'.format(gbr_grid.best_params_))
 
     # #%% GBR
-    gbr = gbr_grid.best_estimator_
-    gbr_score = -cross_val_score(gbr, x_all_train,
+    # gbr = gbr_grid.best_estimator_
+    # gbr_score = -cross_val_score(gbr, x_all_train,
+    #                              y_all_train, cv=4, scoring='neg_mean_squared_error')
+    # gbr.fit(x_all_train,y_all_train)
+    # gbr_y_all_predict = gbr.predict(x_all_train)
+    # gbr_y_test_predict = gbr.predict(x_test)
+    # print("gbr_valid_mse: {}".format(gbr_score.mean()))
+    # print("gbr_all_mse: {}".format(
+    #     metrics.mean_squared_error(y_all_train, gbr_y_all_predict)))
+
+    #%% RandomForest regression
+    rfr_grid = GridSearchCV(ensemble.RandomForestRegressor(), param_grid={'n_estimators': range(10,111,20), 'max_depth': [3, 5, 7, None]}, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
+    rfr_grid.fit(x_all_train,y_all_train)
+    print('Best grfr parameters: {}'.format(rfr_grid.best_params_))
+
+    #%% GBR
+    rfr = rfr_grid.best_estimator_
+    rfr_score = -cross_val_score(rfr, x_all_train,
                                  y_all_train, cv=4, scoring='neg_mean_squared_error')
-    gbr.fit(x_all_train,y_all_train)
-    gbr_y_all_predict = gbr.predict(x_all_train)
-    gbr_y_test_predict = gbr.predict(x_test)
-    print("gbr_valid_mse: {}".format(gbr_score.mean()))
-    print("gbr_all_mse: {}".format(
-        metrics.mean_squared_error(y_all_train, gbr_y_all_predict)))
+    rfr.fit(x_all_train, y_all_train)
+    rfr_y_all_predict = rfr.predict(x_all_train)
+    rfr_y_test_predict = rfr.predict(x_test)
+    print("rfr_valid_mse: {}".format(rfr_score.mean()))
+    print("rfr_all_mse: {}".format(
+        metrics.mean_squared_error(y_all_train, rfr_y_all_predict)))
 
     # #%% RidgeCV search
     # regr_cv = lm.RidgeCV(alphas=[0.1, 1, 11, 21],

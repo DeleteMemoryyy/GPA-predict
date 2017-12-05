@@ -34,7 +34,8 @@ regr_alpha = 11.0
 lsr_alpha = 0.0005547
 enr_alpha = 0.0009649
 enr_l1r = 0.5
-gbr_n_estimators = 500
+gbr_n_estimators = 400
+rfr_n_estimators = 90
 
 rand_seed = 2017
 fill_in_gpa = 2.35815726
@@ -76,67 +77,60 @@ proc_data['social'] = proc_data['social'].fillna(0)
 # process birth_year
 def process_birth_year(x):
     test_age = x['test_year'] - x['birth_year']
-    if (test_age <= 15):
+    if test_age <= 15:
         test_age = 15
-    elif (test_age >= 20):
+    elif test_age >= 20:
         test_age = 20
     return test_age
-
-    tmp_high_rank = all_data['high_rank']
-    for i in range(all_data.shape[0]):
-        if(all_data['high_rank'][i] >= 0.5):
-            tmp_high_rank[i] = all_data['high_rank'][i] / 350.0
-    all_data['high_rank'] = tmp_high_rank
-
 proc_data['birth_year'] = proc_data.apply(process_birth_year, axis=1)
 
 # process sight
 def process_sight(x):
-    if (x == np.nan):
+    if x == np.nan:
         return x
-    if(x >= 3.0):
+    if x >= 3.0:
         return x
-    elif (x >= 2.0 and x < 3.0):
+    elif x >= 2.0 and x < 3.0:
             return 5.3
-    elif (x >= 1.5 and x < 2.0):
+    elif x >= 1.5 and x < 2.0:
         return 5.2
-    elif (x >= 1.2 and x < 1.5):
+    elif x >= 1.2 and x < 1.5:
         return 5.1
-    elif (x >= 1.0 and x < 1.2):
+    elif x >= 1.0 and x < 1.2:
         return 5.0
-    elif (x >= 1.0 and x < 1.2):
+    elif x >= 1.0 and x < 1.2:
         return 5.0
-    elif (x >= 0.8 and x < 1.0):
+    elif x >= 0.8 and x < 1.0:
         return 4.9
-    elif (x >= 0.6 and x < 0.8):
+    elif x >= 0.6 and x < 0.8:
         return 4.8
-    elif (x >= 0.5 and x < 0.6):
+    elif x >= 0.5 and x < 0.6:
         return 4.7
-    elif (x >= 0.4 and x < 0.5):
+    elif x >= 0.4 and x < 0.5:
         return 4.6
-    elif (x >= 0.3 and x < 0.4):
+    elif x >= 0.3 and x < 0.4:
         return 4.5
-    elif (x >= 0.25 and x < 0.3):
+    elif x >= 0.25 and x < 0.3:
         return 4.4
-    elif (x >= 0.2 and x < 0.25):
+    elif x >= 0.2 and x < 0.25:
         return 4.3
-    elif (x >= 0.15 and x < 0.2):
+    elif x >= 0.15 and x < 0.2:
         return 4.2
-    elif (x >= 0.12 and x < 0.15):
+    elif x >= 0.12 and x < 0.15:
         return 4.1
-    elif (x >= 0.1 and x < 0.12):
+    elif x >= 0.1 and x < 0.12:
         return 4.0
-    elif (x >= 0.08 and x < 0.1):
+    elif x >= 0.08 and x < 0.1:
         return 3.9
-    elif (x >= 0.08 and x < 0.1):
+    elif x >= 0.08 and x < 0.1:
         return 3.9
-    elif (x >= 0.06 and x < 0.08):
+    elif x >= 0.06 and x < 0.08:
         return 3.8
-    elif (x >= 0.05 and x < 0.06):
+    elif x >= 0.05 and x < 0.06:
         return 3.7
-    elif (x >= 0.04 and x < 0.05):
+    elif x >= 0.04 and x < 0.05:
         return 3.6
-    elif (x >= 0.03 and x < 0.04):
+    elif x >= 0.03 and x < 0.04:
         return 3.5
     else:
         return np.nan
@@ -151,16 +145,23 @@ proc_data['right_sight'] = proc_data['right_sight'].fillna(
 d_nation = {}
 temp_nation = []
 for i in range(proc_data.shape[0]):
-    if (proc_data['nation'][i] in d_nation.keys()):
-            d_nation[proc_data['nation'][i]] += 1
+    if proc_data['nation'][i] in d_nation.keys():
+        d_nation[proc_data['nation'][i]] += 1
     else:
         d_nation[proc_data['nation'][i]] = 1
 for i in range(proc_data.shape[0]):
-    if (d_nation[proc_data['nation'][i]] <= 6):
+    if d_nation[proc_data['nation'][i]] <= 6:
         temp_nation.append('少数民族')
     else:
         temp_nation.append(proc_data['nation'][i])
 proc_data['nation'] = temp_nation
+
+# process high_rank
+# tmp_high_rank = all_data['high_rank']
+# for i in range(all_data.shape[0]):
+#     if(all_data['high_rank'][i] >= 0.5):
+#         tmp_high_rank[i] = all_data['high_rank'][i] / 350.0
+# all_data['high_rank'] = tmp_high_rank
 
 # one-hot processing
 proc_data[one_hot_columns] = proc_data[one_hot_columns].fillna('Empty')
@@ -185,6 +186,7 @@ regr = lm.Ridge(alpha=regr_alpha)
 lsr = lm.Lasso(alpha=lsr_alpha)
 enr = lm.ElasticNet(alpha=lsr_alpha,l1_ratio=enr_l1r)
 gbr = ensemble.GradientBoostingRegressor(loss='huber', max_features='sqrt',n_estimators=gbr_n_estimators)
+rfr = ensemble.RandomForestRegressor(n_estimators=rfr_n_estimators)
 class Stacking(object):
     def __init__(self, n_folds, stacker, base_models):
         self.n_folds = n_folds
@@ -228,7 +230,7 @@ class Stacking(object):
 
 #%% 5-fold stacking
 stacking = Stacking(n_folds=5, stacker=lm.Ridge(
-    alpha=11.0), base_models=[enr, regr, lsr, svr, gbr])
+    alpha=11.0), base_models=[enr, regr, lsr, svr, gbr, rfr])
 folds = KFold(n_splits=5, shuffle=True, random_state=rand_seed).split(range(x_all_train.shape[0]))
 stacking_score = []
 for idx_train, idx_valid in folds:
@@ -258,8 +260,9 @@ insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学�
 above_result = result[:58]
 below_result = result[58:]
 result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-result.to_csv('result/result_{}_stacking.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime())),
-            header=True,index=False,encoding='utf-8')
+save_name = 'result/result_{}_stacking.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime()))
+result.to_csv(save_name,header=True,index=False,encoding='utf-8')
+print('save to {}\n'.format(save_name))
 
 #%% SVR
 # svr_score = -cross_val_score(svr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
@@ -303,44 +306,3 @@ result.to_csv('result/result_{}_stacking.csv'.format(time.strftime('%b_%d_%H-%M-
 # print('enr_valid_mse: {}'.format(enr_score.mean()))
 # print('enr_all_mse: {}'.format(
 #     metrics.mean_squared_error(result_data, enr_y_all_predict)))
-
-
-# result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
-# result['GPA'] = svr_y_test_predict
-# result.columns=['学生ID','综合GPA']
-# insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',3.584083]],columns=['学生ID','综合GPA'])
-# above_result = result[:58]
-# below_result = result[58:]
-# result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-# result.to_csv('result/result_{}_svr.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime())),
-#             header=True,index=False,encoding='utf-8')
-
-# result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
-# result['GPA'] = regr_y_test_predict
-# result.columns=['学生ID','综合GPA']
-# insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
-# above_result = result[:58]
-# below_result = result[58:]
-# result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-# result.to_csv('result/result_{}_regr.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime())),
-#             header=True,index=False,encoding='utf-8')
-
-# result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
-# result['GPA'] = lsr_y_test_predict
-# result.columns=['学生ID','综合GPA']
-# insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
-# above_result = result[:58]
-# below_result = result[58:]
-# result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-# result.to_csv('result/result_{}_lsr.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime())),
-#             header=True,index=False,encoding='utf-8')
-
-# result = proc_data[['student_ID','GPA']][proc_data['test_tag']=='test']
-# result['GPA'] = enr_y_test_predict
-# result.columns=['学生ID','综合GPA']
-# insert_line = pd.DataFrame([['40dc29f67d3a0ea205e4',fill_in_gpa]],columns=['学生ID','综合GPA'])
-# above_result = result[:58]
-# below_result = result[58:]
-# result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
-# result.to_csv('result/result_{}_enr.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime())),
-#             header=True,index=False,encoding='utf-8')
