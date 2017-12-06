@@ -6,13 +6,12 @@ import pandas as pd
 from pandas import DataFrame as df
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
-from sklearn import tree
 from sklearn import preprocessing as prep
 from sklearn import ensemble
 from sklearn import linear_model as lm
-from sklearn import svm
+from sklearn import kernel_ridge
+from sklearn import svm as svm
 from sklearn import metrics
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -23,7 +22,8 @@ dpart_rank = pd.read_csv('data/depart_rank.csv')
 center_progress = pd.read_csv('data/center_progress.csv')
 center_rank = pd.read_csv('data/center_rank.csv')
 center_var = pd.read_csv('data/center_var.csv')
-all_data = pd.concat([all_data, dpart_rank,center_progress,center_rank,center_var], axis=1)
+BMI = pd.read_csv('data/BMI.csv')
+all_data = pd.concat([all_data, dpart_rank,center_progress,center_rank,center_var,BMI], axis=1)
 proc_data = all_data
 
 drop_gpa = 0.5
@@ -36,6 +36,15 @@ enr_alpha = 0.0009649
 enr_l1r = 0.5
 gbr_n_estimators = 400
 rfr_n_estimators = 90
+krr_alpha = 0.6
+krr_coef0 = 2.5
+krr_degree = 4
+krr_gamma = 0.001
+stacker_regr_alpha = 11.0
+stacker_enr_alpha = 0.00009649
+stacker_enr_l1r = 0.5
+stacker_weight_regr = 1.0
+stacker_weight_enr = 0.0
 
 rand_seed = 2017
 fill_in_gpa = 2.35815726
@@ -43,11 +52,12 @@ fill_in_gpa = 2.35815726
 ori_one_hot_columns = ['province', 'gender', 'test_year', 'nation', 'politics', 'color_blind',
                        'stu_type', 'lan_type', 'sub_type', 'birth_year', 'department', 'reward_type']
 
-ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade', 'center_progress', 'center_rank','center_var','admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank','high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize','competition']
+ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight','BMI', 'grade', 'center_progress', 'center_rank','center_var','admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank','high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize','competition']
 
-drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank', 'center_progress', 'center_var', 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
+drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank',
+                'center_progress', 'center_var', 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent', 'BMI']
 
-one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics','test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
+one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics', 'test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
 
 numerical_columns = ['admit_rank', 'school_num', 'center_grade', 'social', 'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
 
@@ -157,11 +167,12 @@ for i in range(proc_data.shape[0]):
 proc_data['nation'] = temp_nation
 
 # process high_rank
-# tmp_high_rank = all_data['high_rank']
-# for i in range(all_data.shape[0]):
-#     if(all_data['high_rank'][i] >= 0.5):
-#         tmp_high_rank[i] = all_data['high_rank'][i] / 350.0
-# all_data['high_rank'] = tmp_high_rank
+def process_high_rank(x):
+    temp_high_rank = x['high_rank']
+    if temp_high_rank >= 0.5:
+        temp_high_rank /= 350
+    return temp_high_rank
+proc_data['high_rank'] = proc_data.apply(process_high_rank,axis=1)
 
 # one-hot processing
 proc_data[one_hot_columns] = proc_data[one_hot_columns].fillna('Empty')
@@ -185,12 +196,16 @@ svr = svm.SVR(C=svr_C, gamma=svr_gamma)
 regr = lm.Ridge(alpha=regr_alpha)
 lsr = lm.Lasso(alpha=lsr_alpha)
 enr = lm.ElasticNet(alpha=lsr_alpha,l1_ratio=enr_l1r)
-gbr = ensemble.GradientBoostingRegressor(loss='huber', max_features='sqrt',n_estimators=gbr_n_estimators)
+krr = kernel_ridge.KernelRidge(
+    kernel='polynomial', alpha=krr_alpha, gamma=krr_alpha, degree=krr_degree, coef0=krr_coef0)
+gbr = ensemble.GradientBoostingRegressor(
+    loss='huber', max_features='sqrt', n_estimators=gbr_n_estimators)
 rfr = ensemble.RandomForestRegressor(n_estimators=rfr_n_estimators)
 class Stacking(object):
-    def __init__(self, n_folds, stacker, base_models):
+    def __init__(self, n_folds, stackers, stacker_weight, base_models):
         self.n_folds = n_folds
-        self.stacker = stacker
+        self.stackers = stackers
+        self.stacker_weight = stacker_weight
         self.base_models = base_models
 
     def fit(self, X, y):
@@ -215,22 +230,27 @@ class Stacking(object):
 
                 j += 1
 
-        self.stacker.fit(s_train, y)
+        for stacker in self.stackers:
+            stacker.fit(s_train, y)
 
     def predict(self,T):
         T = np.array(T)
         s_test = np.zeros((T.shape[0], len(self.base_models)))
+        y_predict = np.zeros((T.shape[0],len(self.stackers)))
+        y_predict_weighted = np.zeros((T.shape[0],))
 
         for i, mod in enumerate(self.base_models):
             s_test[:, i] = mod.predict(T)[:]
 
-        y_predict = self.stacker.predict(s_test)[:]
+        for i, stacker in enumerate(self.stackers):
+            y_predict[:, i] = stacker.predict(s_test)[:]
+            y_predict_weighted += y_predict[:, i] * self.stacker_weight[i]
 
-        return y_predict
+        return y_predict_weighted
 
 #%% 5-fold stacking
-stacking = Stacking(n_folds=5, stacker=lm.Ridge(
-    alpha=11.0), base_models=[enr, regr, lsr, svr, gbr, rfr])
+stacking = Stacking(n_folds=5, stackers=[lm.Ridge(
+    alpha=stacker_regr_alpha),lm.ElasticNet(alpha=stacker_enr_alpha,l1_ratio=stacker_enr_l1r)],stacker_weight=[stacker_weight_regr,stacker_weight_enr], base_models=[enr, regr, lsr, svr, gbr, rfr, krr])
 folds = KFold(n_splits=5, shuffle=True, random_state=rand_seed).split(range(x_all_train.shape[0]))
 stacking_score = []
 for idx_train, idx_valid in folds:
@@ -263,6 +283,31 @@ result = pd.concat([above_result,insert_line,below_result],ignore_index=True)
 save_name = 'result/result_{}_stacking.csv'.format(time.strftime('%b_%d_%H-%M-%S',time.localtime()))
 result.to_csv(save_name,header=True,index=False,encoding='utf-8')
 print('save to {}\n'.format(save_name))
+
+# #%% weight
+# stacker_regr_alpha = 11.0
+# stacker_enr_alpha = 0.00009649
+# stacker_enr_l1r = 0.5
+# stacker_weight_regr = 0.8
+# stacker_weight_enr = 0.2
+# stacking = Stacking(n_folds=5, stackers=[lm.Ridge(alpha=stacker_regr_alpha), lm.ElasticNet(alpha=stacker_enr_alpha, l1_ratio=stacker_enr_l1r)], stacker_weight=[stacker_weight_regr, stacker_weight_enr], base_models=[enr, regr, lsr, svr, gbr, rfr, krr])
+# folds = KFold(n_splits=5, shuffle=True, random_state=rand_seed).split(range(x_all_train.shape[0]))
+# idx_train, idx_valid = folds.__next__()
+# X = np.array(x_all_train)
+# y = np.array(y_all_train)
+# x_train = X[idx_train]
+# x_valid = X[idx_valid]
+# y_train = y[idx_train]
+# y_valid = y[idx_valid]
+# stacking.fit(x_train,y_train)
+# for t_weight_regr in range(1,11):
+#     weight_regr = t_weight_regr/10.0
+#     weight_enr = 1.0 - weight_regr
+#     stacking.stacker_weight = [weight_regr, weight_enr]
+#     stacking_y_valid_predict = stacking.predict(x_valid)
+#     print('regr: {0:.3f}, enr: {1:.3f}, mse : {2:.10f}'.format(weight_regr, weight_enr,
+#                                                                metrics.mean_squared_error(y_valid, stacking_y_valid_predict)))
+# print('')
 
 #%% SVR
 # svr_score = -cross_val_score(svr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')

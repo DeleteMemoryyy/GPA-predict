@@ -9,8 +9,9 @@ from sklearn.model_selection import cross_val_score
 from sklearn import preprocessing as prep
 from sklearn import ensemble
 from sklearn import linear_model as lm
+from sklearn import kernel_ridge
 from sklearn import svm as svm
-from sklearn import metrics as metrics
+from sklearn import metrics
 from matplotlib import pyplot as plt
 import seaborn as sns
 
@@ -22,7 +23,9 @@ if __name__ == '__main__':
     center_progress = pd.read_csv('data/center_progress.csv')
     center_rank = pd.read_csv('data/center_rank.csv')
     center_var = pd.read_csv('data/center_var.csv')
-    all_data = pd.concat([all_data, dpart_rank,center_progress,center_rank,center_var], axis=1)
+    BMI = pd.read_csv('data/BMI.csv')
+    all_data = pd.concat([all_data, dpart_rank, center_progress,
+                        center_rank, center_var, BMI], axis=1)
     proc_data = all_data
 
     drop_gpa = 0.5
@@ -33,7 +36,8 @@ if __name__ == '__main__':
     lsr_alpha = 0.0005547
     enr_alpha = 0.0009649
     enr_l1r = 0.5
-    gbr_n_estimators = 500
+    gbr_n_estimators = 400
+    rfr_n_estimators = 90
 
     rand_seed = 2017
     fill_in_gpa = 2.35815726
@@ -41,13 +45,17 @@ if __name__ == '__main__':
     ori_one_hot_columns = ['province', 'gender', 'test_year', 'nation', 'politics', 'color_blind',
                         'stu_type', 'lan_type', 'sub_type', 'birth_year', 'department', 'reward_type']
 
-    ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'grade', 'center_progress', 'center_rank','center_var','admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank','high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize','competition']
+    ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'BMI', 'grade', 'center_progress', 'center_rank', 'center_var', 'admit_grade', 'admit_rank',
+                            'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank', 'high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize', 'competition']
 
-    drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank', 'center_progress', 'center_var', 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
+    drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank',
+                    'center_progress', 'center_var', 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
 
-    one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics','test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
+    one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics',
+                    'test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
 
-    numerical_columns = ['admit_rank', 'school_num', 'center_grade', 'social', 'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
+    numerical_columns = ['admit_rank', 'school_num', 'center_grade', 'social',
+                        'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight', 'BMI']
 
     other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
 
@@ -80,14 +88,6 @@ if __name__ == '__main__':
         elif test_age >= 20:
             test_age = 20
         return test_age
-
-    # process high_rank
-    tmp_high_rank = all_data['high_rank']
-    for i in range(all_data.shape[0]):
-        if all_data['high_rank'][i] >= 0.5:
-            tmp_high_rank[i] = all_data['high_rank'][i] / 350.0
-    all_data['high_rank'] = tmp_high_rank
-
     proc_data['birth_year'] = proc_data.apply(process_birth_year, axis=1)
 
     # process sight
@@ -162,6 +162,14 @@ if __name__ == '__main__':
             temp_nation.append(proc_data['nation'][i])
     proc_data['nation'] = temp_nation
 
+    # process high_rank
+    def process_high_rank(x):
+        temp_high_rank = x['high_rank']
+        if temp_high_rank >= 0.5:
+            temp_high_rank /= 350
+        return temp_high_rank
+    proc_data['high_rank'] = proc_data.apply(process_high_rank,axis=1)
+
     # one-hot processing
     proc_data[one_hot_columns] = proc_data[one_hot_columns].fillna('Empty')
     proc_data = pd.get_dummies(proc_data, columns=one_hot_columns)
@@ -211,21 +219,21 @@ if __name__ == '__main__':
     # print("gbr_all_mse: {}".format(
     #     metrics.mean_squared_error(y_all_train, gbr_y_all_predict)))
 
-    #%% RandomForest regression
-    rfr_grid = GridSearchCV(ensemble.RandomForestRegressor(), param_grid={'n_estimators': range(10,111,20), 'max_depth': [3, 5, 7, None]}, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
-    rfr_grid.fit(x_all_train,y_all_train)
-    print('Best grfr parameters: {}'.format(rfr_grid.best_params_))
+    # #%% RandomForestCV search
+    # rfr_grid = GridSearchCV(ensemble.RandomForestRegressor(), param_grid={'n_estimators': range(10,111,20), 'max_depth': [3, 5, 7, None]}, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
+    # rfr_grid.fit(x_all_train,y_all_train)
+    # print('Best grfr parameters: {}'.format(rfr_grid.best_params_))
 
-    #%% GBR
-    rfr = rfr_grid.best_estimator_
-    rfr_score = -cross_val_score(rfr, x_all_train,
-                                 y_all_train, cv=4, scoring='neg_mean_squared_error')
-    rfr.fit(x_all_train, y_all_train)
-    rfr_y_all_predict = rfr.predict(x_all_train)
-    rfr_y_test_predict = rfr.predict(x_test)
-    print("rfr_valid_mse: {}".format(rfr_score.mean()))
-    print("rfr_all_mse: {}".format(
-        metrics.mean_squared_error(y_all_train, rfr_y_all_predict)))
+    # #%% RandomForest regression
+    # rfr = rfr_grid.best_estimator_
+    # rfr_score = -cross_val_score(rfr, x_all_train,
+    #                              y_all_train, cv=4, scoring='neg_mean_squared_error')
+    # rfr.fit(x_all_train, y_all_train)
+    # rfr_y_all_predict = rfr.predict(x_all_train)
+    # rfr_y_test_predict = rfr.predict(x_test)
+    # print("rfr_valid_mse: {}".format(rfr_score.mean()))
+    # print("rfr_all_mse: {}".format(
+    #     metrics.mean_squared_error(y_all_train, rfr_y_all_predict)))
 
     # #%% RidgeCV search
     # regr_cv = lm.RidgeCV(alphas=[0.1, 1, 11, 21],
@@ -243,6 +251,23 @@ if __name__ == '__main__':
     # print("regr_valid_mse: {}".format(regr_score.mean()))
     # print("regr_all_mse: {}".format(
     #     metrics.mean_squared_error(y_all_train, regr_y_all_predict)))
+
+    # #%% KernelRidgeCV search
+    # krr_grid = GridSearchCV(kernel_ridge.KernelRidge(kernel='polynomial'), param_grid={'alpha':[0.001,0.01,0.1,0.6,1], 'gamma': [0.0001,0.001],'degree':[1,2,3,4],'coef0':[1,2.5,4,5.5,7]}, cv=4,
+    #                     scoring='neg_mean_squared_error',verbose=1,n_jobs=4)
+    # krr_grid.fit(x_all_train,y_all_train)
+    # print('Best krr parameters: {}'.format(krr_grid.best_params_))
+
+    # #%% KernelRidge regression
+    # krr = krr_grid.best_estimator_
+    # krr_score = -cross_val_score(
+    #     krr, x_all_train, y_all_train, cv=4, scoring='neg_mean_squared_error')
+    # krr.fit(x_all_train, y_all_train)
+    # krr_y_all_predict = krr.predict(x_all_train)
+    # krr_y_test_predict = krr.predict(x_test)
+    # print("regr_valid_mse: {}".format(krr_score.mean()))
+    # print("regr_all_mse: {}".format(
+    #     metrics.mean_squared_error(y_all_train, krr_y_all_predict)))
 
     # #%% LassoCV search
     # lsr_cv = lm.LassoCV()

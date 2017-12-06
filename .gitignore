@@ -4,6 +4,7 @@ net/
 .idea/
 .vscode/
 .cache/
+.ipynb_checkpoints/
 
 # Prerequisites
 *.d
