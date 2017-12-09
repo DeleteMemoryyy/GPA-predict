@@ -5,13 +5,19 @@ import pandas as pd
 from pandas import DataFrame as df
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 from sklearn import preprocessing as prep
 from sklearn import ensemble
+from sklearn import neural_network
 from sklearn import linear_model as lm
 from sklearn import kernel_ridge
 from sklearn import svm as svm
+from sklearn import tree as tree
 from sklearn import metrics
+import rgf.sklearn as rgf
+import xgboost as xgb
+import lightgbm as lgb
 from matplotlib import pyplot as plt
 import seaborn as sns
 
@@ -45,17 +51,15 @@ if __name__ == '__main__':
     ori_one_hot_columns = ['province', 'gender', 'test_year', 'nation', 'politics', 'color_blind',
                         'stu_type', 'lan_type', 'sub_type', 'birth_year', 'department', 'reward_type']
 
-    ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'BMI', 'grade', 'center_progress', 'center_rank', 'center_var', 'admit_grade', 'admit_rank',
-                            'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank', 'high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize', 'competition']
+    ori_numerical_columns = ['left_sight', 'right_sight', 'height', 'weight', 'BMI', 'grade', 'center_progress', 'center_rank','center_var','admit_grade', 'admit_rank', 'center_grade', 'dpart_rank', 'reward_score', 'school_num', 'school_admit_rank','high_rank', 'rank_var', 'progress', 'patent', 'social', 'prize','competition']
 
-    drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank',
-                    'center_progress', 'center_var', 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent']
+    drop_columns = ['grade', 'admit_grade', 'high_school', 'high_rank', 'rank_var', 'progress',  'center_rank', 'politics',
+                    'center_progress', 'center_var', 'color_blind', 'lan_type', 'left_sight', 'right_sight', 'patent', 'BMI']
 
-    one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'politics',
-                    'test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
+    one_hot_columns = ['province', 'gender', 'birth_year', 'nation', 'test_year', 'stu_type', 'sub_type', 'department', 'reward_type']
 
     numerical_columns = ['admit_rank', 'school_num', 'center_grade', 'social',
-                        'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight', 'BMI']
+                        'school_admit_rank', 'dpart_rank', 'reward_score', 'competition', 'height', 'weight']
 
     other_columns = ['student_ID', 'GPA', 'test_tag', 'test_ID']
 
@@ -186,6 +190,104 @@ if __name__ == '__main__':
     x_test = proc_data[proc_data['test_tag'] == 'test'].drop(other_columns, axis=1)
     result_data = proc_data['GPA'][proc_data['test_tag']!='test']
     y_all_train = result_data.values
+    x_train, x_valid, y_train, y_valid = train_test_split(x_all_train.values, y_all_train,
+                                                          random_state=rand_seed)
+
+    # #%% ETR grid search
+    # etr_grid = GridSearchCV(tree.ExtraTreeRegressor(max_features='sqrt',random_state=rand_seed), param_grid={'max_depth':[3,5,7,9],'min_samples_leaf':[1,2,3,4]}, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
+    # etr_grid.fit(x_all_train,y_all_train)
+    # print('Best etr parameters: {}'.format(etr_grid.best_params_))
+
+    # #%% etr
+    # etr = etr_grid.best_estimator_
+    # etr_score = -cross_val_score(etr,x_all_train,y_all_train,cv=4,scoring='neg_mean_squared_error')
+    # etr.fit(x_all_train, y_all_train)
+    # etr_y_all_predict = etr.predict(x_all_train)
+    # etr_y_test_predict = etr.predict(x_test)
+    # print("etr_valid_mse: {}".format(etr_score.mean()))
+    # print("etr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,etr_y_all_predict)))
+
+    # #%% abr grid search
+    # abr_grid = GridSearchCV(ensemble.AdaBoostRegressor(random_state=rand_seed), param_grid={'n_estimators': [50, 100, 150, 200], 'learning_rate': [
+    #                         0.001, 0.01, 0.1]}, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
+    # abr_grid.fit(x_all_train,y_all_train)
+    # print('Best abr parameters: {}'.format(abr_grid.best_params_))
+
+    # #%% abr
+    # abr = abr_grid.best_estimator_
+    # abr_score = -cross_val_score(abr,x_all_train,y_all_train,cv=4,scoring='neg_mean_squared_error')
+    # abr.fit(x_all_train, y_all_train)
+    # abr_y_all_predict = abr.predict(x_all_train)
+    # abr_y_test_predict = abr.predict(x_test)
+    # print("abr_valid_mse: {}".format(abr_score.mean()))
+    # print("abr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,abr_y_all_predict)))
+
+    # #%% XGB grid search
+    # xgbr_grid = GridSearchCV(xgb.XGBRegressor(booster='gbtree'), param_grid={'n_estimators':[100,300,500],'min_child_weight': [1,2,3], 'max_depth':[3,5,7],'gamma':[0.0001,0.001,0.01,0.1]
+    # }, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
+    # xgbr_grid.fit(x_all_train,y_all_train)
+    # print('Best xgbr parameters: {}'.format(xgbr_grid.best_params_))
+
+    # #%% xgbr
+    # xgbr = xgbr_grid.best_estimator_
+    # xgbr_score = -cross_val_score(xgbr,x_all_train,y_all_train,cv=4,scoring='neg_mean_squared_error')
+    # xgbr.fit(x_all_train, y_all_train)
+    # xgbr_y_all_predict = xgbr.predict(x_all_train)
+    # xgbr_y_test_predict = xgbr.predict(x_test)
+    # print("xgbr_valid_mse: {}".format(xgbr_score.mean()))
+    # print("xgbr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,xgbr_y_all_predict)))
+
+    # #%% XGB grid search
+    # xgbr_grid = GridSearchCV(xgb.XGBRegressor(booster='gblinear'), param_grid={'n_estimators': [100, 300, 500], 'min_child_weight': [1, 2, 3], 'max_depth': [3, 5, 7], 'gamma': [0.0001, 0.001, 0.01, 0.1]
+    # }, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
+    # xgbr_grid.fit(x_all_train,y_all_train)
+    # print('Best xgbr parameters: {}'.format(xgbr_grid.best_params_))
+
+    # #%% xgbr
+    # xgbr = xgbr_grid.best_estimator_
+    # xgbr_score = -cross_val_score(xgbr,x_all_train,y_all_train,cv=4,scoring='neg_mean_squared_error')
+    # xgbr.fit(x_all_train, y_all_train)
+    # xgbr_y_all_predict = xgbr.predict(x_all_train)
+    # xgbr_y_test_predict = xgbr.predict(x_test)
+    # print("xgbr_valid_mse: {}".format(xgbr_score.mean()))
+    # print("xgbr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,xgbr_y_all_predict)))
+
+    # #%% LGB grid search
+    # lgbr_grid = GridSearchCV(lgb.LGBMRegressor(), param_grid={'num_leaves': [3, 7], 'min_data_in_leaf':[11], 'max_bin':[55],'learning_rate':[0.01, 0.05],'n_estimators':[900]}, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
+    # lgbr_grid.fit(x_all_train,y_all_train)
+    # print('Best lgbr parameters: {}'.format(lgbr_grid.best_params_))
+
+    # #%% lgbr
+    # lgbr = lgbr_grid.best_estimator_
+    # lgbr_score = -cross_val_score(lgbr,x_all_train,y_all_train,cv=4,scoring='neg_mean_squared_error')
+    # lgbr.fit(x_all_train, y_all_train)
+    # lgbr_y_all_predict = lgbr.predict(x_all_train)
+    # lgbr_y_test_predict = lgbr.predict(x_test)
+    # print("lgbr_valid_mse: {}".format(lgbr_score.mean()))
+    # print("lgbr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,lgbr_y_all_predict)))
+
+    #%% RFGR grid search
+    rfgr_grid = GridSearchCV(rgf.RGFRegressor(), param_grid={'max_leaf':[100,300,500,700],'test_interval':[50,100,150,200],'min_samples_leaf':[5,10,15,20],'learning_rate':[0.5,0.05,0.005]}, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
+    rfgr_grid.fit(x_all_train,y_all_train)
+    print('Best rfgr parameters: {}'.format(rfgr_grid.best_params_))
+
+    #%% rfgr
+    rfgr = rfgr_grid.best_estimator_
+    rfgr_score = -cross_val_score(rfgr,x_all_train,y_all_train,cv=4,scoring='neg_mean_squared_error')
+    rfgr.fit(x_all_train, y_all_train)
+    rfgr_y_all_predict = rfgr.predict(x_all_train)
+    rfgr_y_test_predict = rfgr.predict(x_test)
+    print("rfgr_valid_mse: {}".format(rfgr_score.mean()))
+    print("rfgr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,rfgr_y_all_predict)))
+
+    # #%% MLP
+    # mlpr = neural_network.MLPRegressor(hidden_layer_sizes=(256,256),learning_rate='invscaling',learning_rate_init=0.01,max_iter=300,random_state=rand_seed,early_stopping=True,verbose=False)
+    # mlpr_score = -cross_val_score(mlpr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+    # mlpr.fit(x_all_train, y_all_train)
+    # mlpr_y_all_predict = mlpr.predict(x_all_train)
+    # mlpr_y_test_predict = mlpr.predict(x_test)
+    # print("mlpr_valid_mse: {}".format(mlpr_score.mean()))
+    # print("mlpr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,mlpr_y_all_predict)))
 
     # #%% SVR grid search
     # svr_grid = GridSearchCV(svm.SVR(), param_grid={'C':[400,500,600], 'gamma': [0.0001,0.001]}, cv=4,
@@ -202,7 +304,7 @@ if __name__ == '__main__':
     # print("svr_valid_mse: {}".format(svr_score.mean()))
     # print("svr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,svr_y_all_predict)))
 
-    # #%% GradientBoosting regression
+    # #%% GradientBoosting grid search
     # gbr_grid = GridSearchCV(ensemble.GradientBoostingRegressor(loss='huber',max_features='sqrt'),param_grid={
     #     'n_estimators': [25, 50, 100, 200], 'learning_rate':[0.001,0.01,0.1],'max_depth':[3,5,7]},scoring='neg_mean_squared_error',verbose=1,n_jobs=4)
     # gbr_grid.fit(x_all_train,y_all_train)
@@ -219,7 +321,7 @@ if __name__ == '__main__':
     # print("gbr_all_mse: {}".format(
     #     metrics.mean_squared_error(y_all_train, gbr_y_all_predict)))
 
-    # #%% RandomForestCV search
+    # #%% RandomForest grid search
     # rfr_grid = GridSearchCV(ensemble.RandomForestRegressor(), param_grid={'n_estimators': range(10,111,20), 'max_depth': [3, 5, 7, None]}, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
     # rfr_grid.fit(x_all_train,y_all_train)
     # print('Best grfr parameters: {}'.format(rfr_grid.best_params_))
