@@ -231,8 +231,7 @@ svr = svm.SVR(C=svr_C, gamma=svr_gamma)
 regr = lm.Ridge(alpha=regr_alpha)
 lsr = lm.Lasso(alpha=lsr_alpha)
 enr = lm.ElasticNet(alpha=lsr_alpha,l1_ratio=enr_l1r)
-krr = kernel_ridge.KernelRidge(
-    kernel='polynomial', alpha=krr_alpha, gamma=krr_alpha, degree=krr_degree, coef0=krr_coef0)
+krr = kernel_ridge.KernelRidge(kernel='polynomial')
 gbr = ensemble.GradientBoostingRegressor(
     loss='huber', max_features='sqrt', n_estimators=gbr_n_estimators)
 rfr = ensemble.RandomForestRegressor(n_estimators=rfr_n_estimators)
@@ -406,31 +405,6 @@ print('save to {}\n'.format(save_name))
 #                                                                metrics.mean_squared_error(y_valid, stacking_y_valid_predict)))
 # print('---------------------------')
 
-#%% SVR
-# svr_score = -cross_val_score(svr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
-# svr.fit(x_all_train, y_all_train)
-# svr_y_all_predict = svr.predict(x_all_train)
-# svr_y_test_predict = svr.predict(x_test)
-# print('svr_valid_mse: {}'.format(svr_score.mean()))
-# print('svr_all_mse: {}'.format(metrics.mean_squared_error(result_data,svr_y_all_predict)))
-
-#%% GBR
-# gbr_score = -cross_val_score(gbr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
-# gbr.fit(x_all_train, y_all_train)
-# gbr_y_all_predict = gbr.predict(x_all_train)
-# gbr_y_test_predict = gbr.predict(x_test)
-# print('gbr_valid_mse: {}'.format(gbr_score.mean()))
-# print('gbr_all_mse: {}'.format(metrics.mean_squared_error(result_data,gbr_y_all_predict)))
-
-#%% Ridge regression
-# regr_score = -cross_val_score(regr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
-# regr.fit(x_all_train, y_all_train)
-# regr_y_all_predict = regr.predict(x_all_train)
-# regr_y_test_predict = regr.predict(x_test)
-# print('regr_valid_mse: {}'.format(regr_score.mean()))
-# print('regr_all_mse: {}'.format(
-#     metrics.mean_squared_error(result_data, regr_y_all_predict)))
-
 #%% Lasso regression
 # lsr_score = -cross_val_score(lsr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
 # lsr.fit(x_all_train, y_all_train)
@@ -440,7 +414,16 @@ print('save to {}\n'.format(save_name))
 # print('lsr_all_mse: {}'.format(
 #     metrics.mean_squared_error(result_data, lsr_y_all_predict)))
 
-#%% Elastic Net regression
+# #%% Ridge regression
+# regr_score = -cross_val_score(regr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+# regr.fit(x_all_train, y_all_train)
+# regr_y_all_predict = regr.predict(x_all_train)
+# regr_y_test_predict = regr.predict(x_test)
+# print('regr_valid_mse: {}'.format(regr_score.mean()))
+# print('regr_all_mse: {}'.format(
+#     metrics.mean_squared_error(result_data, regr_y_all_predict)))
+
+# #%% Elastic Net regression
 # enr_score = -cross_val_score(enr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
 # enr.fit(x_all_train, y_all_train)
 # enr_y_all_predict = enr.predict(x_all_train)
@@ -448,3 +431,76 @@ print('save to {}\n'.format(save_name))
 # print('enr_valid_mse: {}'.format(enr_score.mean()))
 # print('enr_all_mse: {}'.format(
 #     metrics.mean_squared_error(result_data, enr_y_all_predict)))
+
+# #%% Kernel Ridge regression
+# krr_score = -cross_val_score(krr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+# krr.fit(x_all_train, y_all_train)
+# krr_y_all_predict = krr.predict(x_all_train)
+# krr_y_test_predict = krr.predict(x_test)
+# print('krr_valid_mse: {}'.format(krr_score.mean()))
+# print('krr_all_mse: {}'.format(
+#     metrics.mean_squared_error(result_data, krr_y_all_predict)))
+
+# #%% SVR
+# svr_score = -cross_val_score(svr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+# svr.fit(x_all_train, y_all_train)
+# svr_y_all_predict = svr.predict(x_all_train)
+# svr_y_test_predict = svr.predict(x_test)
+# print('svr_valid_mse: {}'.format(svr_score.mean()))
+# print('svr_all_mse: {}'.format(metrics.mean_squared_error(result_data,svr_y_all_predict)))
+
+# #%% GBR
+# gbr_score = -cross_val_score(gbr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+# gbr.fit(x_all_train, y_all_train)
+# gbr_y_all_predict = gbr.predict(x_all_train)
+# gbr_y_test_predict = gbr.predict(x_test)
+# print('gbr_valid_mse: {}'.format(gbr_score.mean()))
+# print('gbr_all_mse: {}'.format(metrics.mean_squared_error(result_data,gbr_y_all_predict)))
+
+# #%% XGBR
+# xgbr_score = -cross_val_score(xgbr,x_all_train,y_all_train,cv=5,scoring='neg_mean_squared_error')
+# xgbr.fit(x_all_train, y_all_train)
+# xgbr_y_all_predict = xgbr.predict(x_all_train)
+# xgbr_y_test_predict = xgbr.predict(x_test)
+# print('xgbr_valid_mse: {}'.format(xgbr_score.mean()))
+# print('xgbr_all_mse: {}'.format(metrics.mean_squared_error(result_data,xgbr_y_all_predict)))
+
+# #%% XGBLR
+# xgblr_score = -cross_val_score(xgblr, x_all_train,
+#                               y_all_train, cv=5, scoring='neg_mean_squared_error')
+# xgblr.fit(x_all_train, y_all_train)
+# xgblr_y_all_predict = xgblr.predict(x_all_train)
+# xgblr_y_test_predict = xgblr.predict(x_test)
+# print('xgblr_valid_mse: {}'.format(xgblr_score.mean()))
+# print('xgblr_all_mse: {}'.format(
+#     metrics.mean_squared_error(result_data, xgblr_y_all_predict)))
+
+# #%% LightGBM
+# lgbr_score = -cross_val_score(lgbr, x_all_train,
+#                                y_all_train, cv=5, scoring='neg_mean_squared_error')
+# lgbr.fit(x_all_train, y_all_train)
+# lgbr_y_all_predict = lgbr.predict(x_all_train)
+# lgbr_y_test_predict = lgbr.predict(x_test)
+# print('lgbr_valid_mse: {}'.format(lgbr_score.mean()))
+# print('lgbr_all_mse: {}'.format(
+#     metrics.mean_squared_error(result_data, lgbr_y_all_predict)))
+
+# #%% Random Forest
+# rfr_score = -cross_val_score(rfr, x_all_train,
+#                                y_all_train, cv=5, scoring='neg_mean_squared_error')
+# rfr.fit(x_all_train, y_all_train)
+# rfr_y_all_predict = rfr.predict(x_all_train)
+# rfr_y_test_predict = rfr.predict(x_test)
+# print('rfr_valid_mse: {}'.format(rfr_score.mean()))
+# print('rfr_all_mse: {}'.format(
+#     metrics.mean_squared_error(result_data, rfr_y_all_predict)))
+
+# #%% Regularized Greedy Forest
+# rgfr_score = -cross_val_score(rgfr, x_all_train,
+#                              y_all_train, cv=5, scoring='neg_mean_squared_error')
+# rgfr.fit(x_all_train, y_all_train)
+# rgfr_y_all_predict = rgfr.predict(x_all_train)
+# rgfr_y_test_predict = rgfr.predict(x_test)
+# print('rgfr_valid_mse: {}'.format(rgfr_score.mean()))
+# print('rgfr_all_mse: {}'.format(
+#     metrics.mean_squared_error(result_data, rgfr_y_all_predict)))
