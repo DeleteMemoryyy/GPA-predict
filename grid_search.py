@@ -266,19 +266,19 @@ if __name__ == '__main__':
     # print("lgbr_valid_mse: {}".format(lgbr_score.mean()))
     # print("lgbr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,lgbr_y_all_predict)))
 
-    #%% RFGR grid search
-    rfgr_grid = GridSearchCV(rgf.RGFRegressor(), param_grid={'max_leaf':[100,300,500,700],'test_interval':[50,100,150,200],'min_samples_leaf':[5,10,15,20],'learning_rate':[0.5,0.05,0.005]}, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
-    rfgr_grid.fit(x_all_train,y_all_train)
-    print('Best rfgr parameters: {}'.format(rfgr_grid.best_params_))
+    # #%% RFGR grid search
+    # rfgr_grid = GridSearchCV(rgf.RGFRegressor(), param_grid={'max_leaf':[100,300,500,700],'test_interval':[50,100,150,200],'min_samples_leaf':[5,10,15,20],'learning_rate':[0.5,0.05,0.005]}, scoring='neg_mean_squared_error', verbose=1, n_jobs=4)
+    # rfgr_grid.fit(x_all_train,y_all_train)
+    # print('Best rfgr parameters: {}'.format(rfgr_grid.best_params_))
 
-    #%% rfgr
-    rfgr = rfgr_grid.best_estimator_
-    rfgr_score = -cross_val_score(rfgr,x_all_train,y_all_train,cv=4,scoring='neg_mean_squared_error')
-    rfgr.fit(x_all_train, y_all_train)
-    rfgr_y_all_predict = rfgr.predict(x_all_train)
-    rfgr_y_test_predict = rfgr.predict(x_test)
-    print("rfgr_valid_mse: {}".format(rfgr_score.mean()))
-    print("rfgr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,rfgr_y_all_predict)))
+    # #%% rfgr
+    # rfgr = rfgr_grid.best_estimator_
+    # rfgr_score = -cross_val_score(rfgr,x_all_train,y_all_train,cv=4,scoring='neg_mean_squared_error')
+    # rfgr.fit(x_all_train, y_all_train)
+    # rfgr_y_all_predict = rfgr.predict(x_all_train)
+    # rfgr_y_test_predict = rfgr.predict(x_test)
+    # print("rfgr_valid_mse: {}".format(rfgr_score.mean()))
+    # print("rfgr_all_mse: {}".format(metrics.mean_squared_error(y_all_train,rfgr_y_all_predict)))
 
     # #%% MLP
     # mlpr = neural_network.MLPRegressor(hidden_layer_sizes=(256,256),learning_rate='invscaling',learning_rate_init=0.01,max_iter=300,random_state=rand_seed,early_stopping=True,verbose=False)
